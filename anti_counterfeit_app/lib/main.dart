@@ -1,0 +1,98 @@
+import 'package:flutter/material.dart';
+import 'package:anti_counterfeit_app/services/blockchain_service.dart';
+import 'package:anti_counterfeit_app/screens/scanner_screen.dart';
+import 'package:anti_counterfeit_app/screens/manufacturer_screen.dart';
+
+void main() {
+  runApp(const AntiCounterfeitApp());
+}
+
+class AntiCounterfeitApp extends StatefulWidget {
+  const AntiCounterfeitApp({super.key});
+
+  @override
+  State<AntiCounterfeitApp> createState() => _AntiCounterfeitAppState();
+}
+
+class _AntiCounterfeitAppState extends State<AntiCounterfeitApp> {
+  final BlockchainService _blockchainService = BlockchainService();
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initWeb3();
+  }
+
+  Future<void> _initWeb3() async {
+    await _blockchainService.init();
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Anti-Counterfeit App',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      home: _isLoading
+          ? const Scaffold(
+              backgroundColor: Colors.black,
+              body: Center(
+                child: CircularProgressIndicator(color: Colors.blueAccent),
+              ),
+            )
+          : MainNavigationScreen(blockchainService: _blockchainService),
+    );
+  }
+}
+
+class MainNavigationScreen extends StatefulWidget {
+  final BlockchainService blockchainService;
+
+  const MainNavigationScreen({super.key, required this.blockchainService});
+
+  @override
+  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+}
+
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  int _currentIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> screens = [
+      ScannerScreen(blockchainService: widget.blockchainService),
+      ManufacturerScreen(blockchainService: widget.blockchainService),
+    ];
+
+    return Scaffold(
+      body: IndexedStack(index: _currentIndex, children: screens),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        backgroundColor: Colors.black,
+        selectedItemColor: Colors.blueAccent,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.qr_code_scanner),
+            label: 'Verify (Consumer)',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.factory),
+            label: 'Register (Manufacturer)',
+          ),
+        ],
+      ),
+    );
+  }
+}

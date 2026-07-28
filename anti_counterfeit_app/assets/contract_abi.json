@@ -1,0 +1,222 @@
+[
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_manufacturer",
+				"type": "address"
+			}
+		],
+		"name": "addManufacturer",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "_serialNumber",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_name",
+				"type": "string"
+			}
+		],
+		"name": "addProduct",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "manufacturer",
+				"type": "address"
+			}
+		],
+		"name": "ManufacturerAdded",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "_serialNumber",
+				"type": "string"
+			}
+		],
+		"name": "markAsSold",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "serialNumber",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "manufacturer",
+				"type": "address"
+			}
+		],
+		"name": "ProductAdded",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "serialNumber",
+				"type": "string"
+			}
+		],
+		"name": "ProductSold",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "manufacturers",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"name": "products",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "serialNumber",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"internalType": "address",
+				"name": "manufacturer",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bool",
+				"name": "isRegistered",
+				"type": "bool"
+			},
+			{
+				"internalType": "bool",
+				"name": "isSold",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "_serialNumber",
+				"type": "string"
+			}
+		],
+		"name": "verifyProduct",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			},
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
