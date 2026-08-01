@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:anti_counterfeit_app/services/blockchain_service.dart';
 import 'package:anti_counterfeit_app/screens/scanner_screen.dart';
 import 'package:anti_counterfeit_app/screens/manufacturer_screen.dart';
+import 'package:anti_counterfeit_app/widgets/app_drawer.dart';
+import 'package:anti_counterfeit_app/providers/settings_provider.dart';
 
 void main() {
   runApp(const AntiCounterfeitApp());
@@ -17,6 +19,7 @@ class AntiCounterfeitApp extends StatefulWidget {
 class _AntiCounterfeitAppState extends State<AntiCounterfeitApp> {
   final BlockchainService _blockchainService = BlockchainService();
   bool _isLoading = true;
+  final SettingsProvider _settingsProvider = SettingsProvider();
 
   @override
   void initState() {
@@ -35,18 +38,47 @@ class _AntiCounterfeitAppState extends State<AntiCounterfeitApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Anti-Counterfeit App',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+    return SettingsScope(
+      notifier: _settingsProvider,
+      child: AnimatedBuilder(
+        animation: _settingsProvider,
+        builder: (context, child) {
+          return MaterialApp(
+            title: 'Anti-Counterfeit App',
+            debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        brightness: Brightness.light,
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+        scaffoldBackgroundColor: Colors.grey[100],
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.blueAccent,
+          foregroundColor: Colors.white,
+        ),
+      ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+        scaffoldBackgroundColor: Colors.black,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+        ),
+      ),
+      themeMode: _settingsProvider.themeMode,
       home: _isLoading
           ? const Scaffold(
-              backgroundColor: Colors.black,
               body: Center(
                 child: CircularProgressIndicator(color: Colors.blueAccent),
               ),
             )
-          : MainNavigationScreen(blockchainService: _blockchainService),
+          : MainNavigationScreen(
+              blockchainService: _blockchainService,
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -54,7 +86,10 @@ class _AntiCounterfeitAppState extends State<AntiCounterfeitApp> {
 class MainNavigationScreen extends StatefulWidget {
   final BlockchainService blockchainService;
 
-  const MainNavigationScreen({super.key, required this.blockchainService});
+  const MainNavigationScreen({
+    super.key,
+    required this.blockchainService,
+  });
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
@@ -70,7 +105,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ManufacturerScreen(blockchainService: widget.blockchainService),
     ];
 
+    final List<String> titles = [
+      'Verify Product',
+      'Manufacturer Portal',
+    ];
+
     return Scaffold(
+      appBar: AppBar(
+        title: Text(titles[_currentIndex]),
+      ),
+      drawer: const AppDrawer(),
       body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,

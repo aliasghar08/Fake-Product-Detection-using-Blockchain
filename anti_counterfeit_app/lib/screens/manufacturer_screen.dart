@@ -65,8 +65,10 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
           title,
           style: TextStyle(color: color, fontWeight: FontWeight.bold),
         ),
-        content: SelectableText(
-          message,
+        content: SingleChildScrollView(
+          child: SelectableText(
+            message,
+          ),
         ), // Selectable so you can copy the txHash
         actions: [
           TextButton(
@@ -90,12 +92,6 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: const Text('Manufacturer Portal'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
-      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
@@ -194,11 +190,14 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
                             ? const CircularProgressIndicator(
                                 color: Colors.white,
                               )
-                            : const Text(
-                                "Mint on Blockchain",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                            : const FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  "Mint on Blockchain",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                       ),

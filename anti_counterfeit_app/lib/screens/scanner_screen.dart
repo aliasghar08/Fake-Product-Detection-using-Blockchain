@@ -98,7 +98,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
             ),
           ],
         ),
-        content: Text(message, style: const TextStyle(fontSize: 16)),
+        content: SingleChildScrollView(
+          child: Text(message, style: const TextStyle(fontSize: 16)),
+        ),
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: color),
@@ -106,6 +108,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
             child: const Text(
               "Scan Another",
               style: TextStyle(color: Colors.white),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -116,14 +120,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text(
-          'Verify Product',
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: Colors.black,
-      ),
       // PLUGGING IN YOUR SEPARATE WIDGET HERE
       body: CustomScannerWidget(
         onCodeDetected: (String code) {

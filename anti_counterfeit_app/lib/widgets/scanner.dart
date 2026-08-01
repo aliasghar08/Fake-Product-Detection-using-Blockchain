@@ -1,7 +1,10 @@
+import 'dart:async';
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:anti_counterfeit_app/services/camera_service.dart';
 
 class CustomScannerWidget extends StatefulWidget {
-  // This callback sends the scanned string back to the main screen
+  /// Callback fired when a QR / barcode is detected.
   final Function(String) onCodeDetected;
 
   const CustomScannerWidget({super.key, required this.onCodeDetected});
@@ -10,49 +13,414 @@ class CustomScannerWidget extends StatefulWidget {
   State<CustomScannerWidget> createState() => _CustomScannerWidgetState();
 }
 
-class _CustomScannerWidgetState extends State<CustomScannerWidget> {
-  
-  // TODO: Initialize your posHub camera controller here
-  
+class _CustomScannerWidgetState extends State<CustomScannerWidget>
+    with SingleTickerProviderStateMixin {
+  final CameraService _cameraService = CameraService();
+
+  late AnimationController _animationController;
+  StreamSubscription<String>? _barcodeSub;
+  bool _hasScanned = false;
+  bool _isInitialized = false;
+  bool _isTorchOn = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Scan-line animation
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat(reverse: true);
+
+    _initCamera();
+  }
+
+  Future<void> _initCamera() async {
+    try {
+      await _cameraService.initialize();
+
+      // Listen for barcodes coming from our custom service
+      _barcodeSub = _cameraService.barcodeStream.listen(_onBarcodeDetected);
+
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+        });
+      }
+    }
+  }
+
+  void _onBarcodeDetected(String value) {
+    if (_hasScanned) return;
+
+    _hasScanned = true;
+    _cameraService.pauseDetection();
+    widget.onCodeDetected(value);
+
+    // Reset after a delay so user can scan again after dismissing the result
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        _hasScanned = false;
+        _cameraService.resumeDetection();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _barcodeSub?.cancel();
+    _cameraService.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Error state
+    if (_errorMessage != null) {
+      return _ErrorView(message: _errorMessage!);
+    }
+
+    // Loading state
+    if (!_isInitialized || _cameraService.controller == null) {
+      return Container(
+        color: Colors.black,
+        child: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: Colors.blueAccent),
+              SizedBox(height: 16),
+              Text(
+                'Starting camera…',
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Stack(
       children: [
-        // 1. YOUR POSHUB CAMERA VIEW GOES HERE
-        // Replace this Container with your actual custom camera preview widget
-        Container(
-          color: Colors.grey[900],
-          width: double.infinity,
-          height: double.infinity,
-          child: const Center(
-            child: Text(
-              "Your Custom Camera Feed",
-              style: TextStyle(color: Colors.white54, fontSize: 18),
+        // ── Camera preview ──────────────────────────────────────────
+        SizedBox.expand(
+          child: FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox(
+              width: _cameraService.controller!.value.previewSize?.height ?? 1,
+              height: _cameraService.controller!.value.previewSize?.width ?? 1,
+              child: CameraPreview(_cameraService.controller!),
             ),
           ),
         ),
 
-        // 2. TESTING BUTTON (Optional)
-        // Since the PC emulator can't scan real QR codes, use this button to 
-        // test the blockchain connection before you build the APK.
+        // ── Scanning overlay with viewfinder cutout ─────────────────
+        _ScanOverlay(animationController: _animationController),
+
+        // ── Top toolbar: flash toggle ──────────────────────────────
         Positioned(
-          bottom: 100,
-          left: 50,
-          right: 50,
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.qr_code),
-            label: const Text("Simulate QR Scan (Test-123)"),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 15),
-            ),
-            onPressed: () {
-              // Simulating that the camera just detected a string
-              // Replace "Test-123" with a serial number you deployed to your smart contract
-              widget.onCodeDetected("Test-123"); 
-            },
+          top: MediaQuery.of(context).padding.top + 12,
+          left: 16,
+          right: 16,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _ToolbarButton(
+                icon: _isTorchOn ? Icons.flash_on : Icons.flash_off,
+                label: _isTorchOn ? 'Flash On' : 'Flash Off',
+                isActive: _isTorchOn,
+                onTap: () async {
+                  await _cameraService.toggleTorch();
+                  if (mounted) {
+                    setState(() {
+                      _isTorchOn = _cameraService.isTorchOn;
+                    });
+                  }
+                },
+              ),
+            ],
           ),
-        )
+        ),
+
+        // ── Bottom instruction text ─────────────────────────────────
+        Positioned(
+          bottom: 60,
+          left: 40,
+          right: 40,
+          child: Center(
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Text(
+                'Point camera at a QR code to verify product',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Error view shown when camera fails to initialize
+// ─────────────────────────────────────────────────────────────────────────────
+class _ErrorView extends StatelessWidget {
+  final String message;
+  const _ErrorView({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black,
+      padding: const EdgeInsets.all(32),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.videocam_off_rounded,
+                color: Colors.redAccent, size: 64),
+            const SizedBox(height: 16),
+            const Text(
+              'Camera Unavailable',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white54, fontSize: 14),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Toolbar button used for flash control
+// ─────────────────────────────────────────────────────────────────────────────
+class _ToolbarButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isActive;
+
+  const _ToolbarButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isActive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive
+              ? Colors.blueAccent.withValues(alpha: 0.8)
+              : Colors.black45,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dark overlay with a transparent square "viewfinder" cutout + scan line
+// ─────────────────────────────────────────────────────────────────────────────
+class _ScanOverlay extends StatelessWidget {
+  final AnimationController animationController;
+
+  const _ScanOverlay({required this.animationController});
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final scanAreaSize = size.width * 0.7;
+
+    return Stack(
+      children: [
+        // Semi-transparent background with a clear centre
+        ColorFiltered(
+          colorFilter:
+              const ColorFilter.mode(Colors.black54, BlendMode.srcOut),
+          child: Stack(
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  color: Colors.black,
+                  backgroundBlendMode: BlendMode.dstOut,
+                ),
+              ),
+              Center(
+                child: Container(
+                  width: scanAreaSize,
+                  height: scanAreaSize,
+                  decoration: BoxDecoration(
+                    color: Colors.red, // colour is irrelevant – it's cut out
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Corner decorations
+        Center(
+          child: SizedBox(
+            width: scanAreaSize,
+            height: scanAreaSize,
+            child: CustomPaint(
+              painter: _CornerPainter(),
+            ),
+          ),
+        ),
+
+        // Animated scan line
+        Center(
+          child: SizedBox(
+            width: scanAreaSize,
+            height: scanAreaSize,
+            child: AnimatedBuilder(
+              animation: animationController,
+              builder: (context, child) {
+                return Align(
+                  alignment: Alignment(
+                    0,
+                    -1 + 2 * animationController.value,
+                  ),
+                  child: Container(
+                    width: scanAreaSize - 24,
+                    height: 2,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.blueAccent.withValues(alpha: 0.0),
+                          Colors.blueAccent,
+                          Colors.blueAccent.withValues(alpha: 0.0),
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blueAccent.withValues(alpha: 0.5),
+                          blurRadius: 12,
+                          spreadRadius: 4,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Custom painter for corner bracket decorations
+// ─────────────────────────────────────────────────────────────────────────────
+class _CornerPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    const double cornerLen = 28;
+    const double strokeWidth = 4;
+    const double radius = 16;
+
+    final paint = Paint()
+      ..color = Colors.blueAccent
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // Top-left
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, cornerLen)
+        ..lineTo(0, radius)
+        ..arcToPoint(Offset(radius, 0),
+            radius: const Radius.circular(radius))
+        ..lineTo(cornerLen, 0),
+      paint,
+    );
+
+    // Top-right
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width - cornerLen, 0)
+        ..lineTo(size.width - radius, 0)
+        ..arcToPoint(Offset(size.width, radius),
+            radius: const Radius.circular(radius))
+        ..lineTo(size.width, cornerLen),
+      paint,
+    );
+
+    // Bottom-left
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, size.height - cornerLen)
+        ..lineTo(0, size.height - radius)
+        ..arcToPoint(Offset(radius, size.height),
+            radius: const Radius.circular(radius))
+        ..lineTo(cornerLen, size.height),
+      paint,
+    );
+
+    // Bottom-right
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width - cornerLen, size.height)
+        ..lineTo(size.width - radius, size.height)
+        ..arcToPoint(Offset(size.width, size.height - radius),
+            radius: const Radius.circular(radius))
+        ..lineTo(size.width, size.height - cornerLen),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

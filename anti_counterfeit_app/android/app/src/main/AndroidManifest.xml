@@ -2,6 +2,8 @@
     
     <!-- This line allows your app to connect to the blockchain network -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Required for QR code scanning with the camera -->
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <application
         android:label="anti_counterfeir_app"
