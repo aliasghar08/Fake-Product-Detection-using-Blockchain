@@ -41,6 +41,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
       return; // Stop execution if offline
     }
 
+    if (!mounted) return;
+
     setState(() => _isProcessing = true);
 
     showDialog(
@@ -94,54 +96,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
       );
     }
 
-    setState(() => _isProcessing = false);
-  }
-
-  // KEPT AS REQUESTED - The original dialog function remains here safely
-  Future<void> _showResultDialog(
-    String title,
-    String message,
-    Color color,
-    IconData icon,
-  ) async {
-    return showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Text(message, style: const TextStyle(fontSize: 16)),
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: color),
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              "Scan Another",
-              style: TextStyle(color: Colors.white),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
+    if (mounted) {
+      setState(() => _isProcessing = false);
+    }
   }
 
   @override

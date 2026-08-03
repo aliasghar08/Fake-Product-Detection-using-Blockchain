@@ -1,6 +1,6 @@
 {
-    "name": "anti_counterfeir_app",
-    "short_name": "anti_counterfeir_app",
+    "name": "anti_counterfeit_app",
+    "short_name": "anti_counterfeit_app",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

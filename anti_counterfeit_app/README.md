@@ -1,4 +1,4 @@
-# anti_counterfeir_app
+# anti_counterfeit_app
 
 A new Flutter project.
 

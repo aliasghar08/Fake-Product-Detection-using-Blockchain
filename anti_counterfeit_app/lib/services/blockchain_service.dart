@@ -7,8 +7,6 @@ class BlockchainService {
   final String _rpcUrl = "https://ethereum-sepolia-rpc.publicnode.com";
 
   // 2. The contract address copied from Remix
-  // final String _contractAddressHex = "0xd9145CCE52D386f254917e481eB44e9943F39138";
-
   final String _contractAddressHex =
       "0xa8C1Ff6Ee8f8f686AFAB25E3232dE621816c2210";
 
@@ -37,6 +35,56 @@ class BlockchainService {
     _addProductFunc = _contract.function('addProduct');
     _verifyProductFunc = _contract.function('verifyProduct');
     _markAsSoldFunc = _contract.function('markAsSold');
+  }
+
+  /// PRE-FLIGHT CHECK: Estimate gas cost and verify account Sepolia ETH balance
+  /// Returns null if balance is sufficient, or a formatted warning string if not.
+  Future<String?> checkGasAndBalance({
+    required String privateKeyHex,
+    required String functionName,
+    required List<dynamic> params,
+  }) async {
+    try {
+      final credentials = EthPrivateKey.fromHex(privateKeyHex);
+      final senderAddress = credentials.address;
+
+      // 1. Fetch current account balance
+      final EtherAmount balance = await _web3client.getBalance(senderAddress);
+
+      // 2. Fetch current network gas price
+      final EtherAmount gasPrice = await _web3client.getGasPrice();
+
+      // 3. Select target function
+      final function = _contract.function(functionName);
+
+      // 4. Estimate required gas units
+      final BigInt estimatedGasLimit = await _web3client.estimateGas(
+        sender: senderAddress,
+        to: _contract.address,
+        data: function.encodeCall(params),
+      );
+
+      // 5. Calculate total fee in Wei = Gas Limit * Gas Price
+      final BigInt totalCostWei = estimatedGasLimit * gasPrice.getInWei;
+      final BigInt balanceWei = balance.getInWei;
+
+      // 6. Compare balance against required gas fee
+      if (balanceWei < totalCostWei) {
+        final double requiredEth = totalCostWei / BigInt.from(10).pow(18);
+        final double currentEth = balanceWei / BigInt.from(10).pow(18);
+
+        return 'Insufficient Sepolia ETH for gas fees!\n\n'
+            '• Estimated Fee: ~${requiredEth.toStringAsFixed(6)} ETH\n'
+            '• Current Balance: ${currentEth.toStringAsFixed(6)} ETH\n\n'
+            'Please top up your wallet with Sepolia test ETH.';
+      }
+
+      return null; // Sufficient balance!
+    } catch (e) {
+      // If estimation fails due to invalid key or format, return null 
+      // and let the main execution block surface the explicit error cleanly.
+      return null;
+    }
   }
 
   /// READ FUNCTION: Verify product details (Free call, no gas needed)
@@ -68,7 +116,6 @@ class BlockchainService {
   }
 
   /// WRITE FUNCTION: Add a new product (Requires manufacturer private key for gas)
-  /// WRITE FUNCTION: Add a new product (Requires manufacturer private key for gas)
   Future<String> addProduct({
     required BigInt id,
     required String serialNumber,
@@ -84,7 +131,6 @@ class BlockchainService {
         function: _addProductFunc,
         parameters: [id, serialNumber, name],
       ),
-      // REPLACE null WITH THE SEPOLIA CHAIN ID
       chainId: 11155111,
     );
 
@@ -105,7 +151,6 @@ class BlockchainService {
         function: _markAsSoldFunc,
         parameters: [serialNumber],
       ),
-      // REPLACE null WITH THE SEPOLIA CHAIN ID
       chainId: 11155111,
     );
 

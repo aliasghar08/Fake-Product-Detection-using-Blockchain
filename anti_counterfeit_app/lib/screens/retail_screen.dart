@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:anti_counterfeit_app/services/blockchain_service.dart';
 import 'package:anti_counterfeit_app/services/storage_service.dart';
 import 'package:anti_counterfeit_app/services/network_service.dart';
+import 'package:anti_counterfeit_app/services/biometric_service.dart'; // IMPORT ADDED
 import 'package:anti_counterfeit_app/widgets/scanner.dart';
 
 class RetailerScreen extends StatefulWidget {
@@ -24,11 +26,40 @@ class _RetailerScreenState extends State<RetailerScreen> {
   }
 
   Future<void> _loadSavedKey() async {
+    // 1. Check if there is even a key to load first
     final savedKey = await StorageService.loadKey();
-    if (savedKey != null && mounted) {
-      setState(() {
-        _privateKeyController.text = savedKey;
-      });
+    
+    if (savedKey != null && savedKey.isNotEmpty && mounted) {
+      // 2. Trigger native Biometric verification (Fingerprint/Face ID)
+      bool authenticated = await BiometricService.authenticate();
+      
+      if (authenticated) {
+        // 3. Unlock and populate the key
+        setState(() {
+          _privateKeyController.text = savedKey;
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Identity verified. Private key unlocked 🔓'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        // 4. Fail gracefully if they cancel or use the wrong fingerprint
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Authentication failed. Key remains locked 🔒'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -37,9 +68,8 @@ class _RetailerScreenState extends State<RetailerScreen> {
 
     final privateKey = _privateKeyController.text.trim();
 
-    // Enforce private key entry before scanning
     if (privateKey.isEmpty) {
-      _showDialog(
+      _showErrorDialog(
         "Action Required",
         "Please enter your Retailer Private Key first to pay network gas fees.",
         Colors.orange,
@@ -61,14 +91,29 @@ class _RetailerScreenState extends State<RetailerScreen> {
           ),
         );
       }
-      return; // Stop execution if offline
+      return;
     }
+
+    // 2. PRE-FLIGHT GAS FEE & BALANCE CHECK
+    final gasWarning = await widget.blockchainService.checkGasAndBalance(
+      privateKeyHex: privateKey,
+      functionName: 'markAsSold',
+      params: [scannedSerialNumber],
+    );
+
+    if (gasWarning != null) {
+      if (mounted) {
+        _showErrorDialog("Gas Fee Warning ⚠️", gasWarning, Colors.orange);
+      }
+      return;
+    }
+
+    if (!mounted) return;
 
     setState(() {
       _isProcessing = true;
     });
 
-    // Show loading indicator
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -77,31 +122,23 @@ class _RetailerScreenState extends State<RetailerScreen> {
     );
 
     try {
-      // Trigger the smart contract to mark the item as sold
       final txHash = await widget.blockchainService.markAsSold(
         serialNumber: scannedSerialNumber,
         privateKeyHex: privateKey,
       );
 
-      // Save the private key upon successful checkout
       await StorageService.saveKey(privateKey);
 
-      // Remove loading indicator
       if (mounted) Navigator.pop(context);
 
       if (mounted) {
-        _showDialog(
-          "Checkout Successful! 🛒",
-          "Product permanently marked as sold on the blockchain.\n\nTransaction Hash:\n$txHash",
-          Colors.green,
-        );
+        _showSuccessDialog(txHash);
       }
     } catch (e) {
-      // Remove loading indicator
       if (mounted) Navigator.pop(context);
 
       if (mounted) {
-        _showDialog("Transaction Failed ❌", e.toString(), Colors.red);
+        _showErrorDialog("Transaction Failed ❌", e.toString(), Colors.red);
       }
     } finally {
       if (mounted) {
@@ -112,7 +149,64 @@ class _RetailerScreenState extends State<RetailerScreen> {
     }
   }
 
-  void _showDialog(String title, String message, Color color) {
+  void _showSuccessDialog(String txHash) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.shopping_cart_checkout, color: Colors.green, size: 28),
+            SizedBox(width: 8),
+            Text(
+              "Checkout Successful! 🛒",
+              style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Product permanently marked as sold on the blockchain.\n"),
+              const Text(
+                "Transaction Hash:",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const SizedBox(height: 4),
+              SelectableText(
+                txHash,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          OutlinedButton.icon(
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: const Text("View on Etherscan"),
+            onPressed: () async {
+              final Uri url = Uri.parse('https://sepolia.etherscan.io/tx/$txHash');
+              if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Could not launch Etherscan URL')),
+                  );
+                }
+              }
+            },
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(String title, String message, Color color) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -151,13 +245,12 @@ class _RetailerScreenState extends State<RetailerScreen> {
       ),
       body: Column(
         children: [
-          // Private Key Input Section (Top)
           Container(
             padding: const EdgeInsets.all(16.0),
             color: Colors.white,
             child: TextField(
               controller: _privateKeyController,
-              obscureText: true, // Hides the key for security
+              obscureText: true,
               decoration: const InputDecoration(
                 labelText: 'Retailer Private Key',
                 hintText: 'Enter key to authorize sale',
@@ -166,8 +259,6 @@ class _RetailerScreenState extends State<RetailerScreen> {
               ),
             ),
           ),
-
-          // Scanner Section (Bottom)
           Expanded(
             child: CustomScannerWidget(
               onCodeDetected: (String code) {

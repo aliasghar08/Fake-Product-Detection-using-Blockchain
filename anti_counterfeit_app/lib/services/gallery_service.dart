@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 class GalleryService {
   static const MethodChannel _channel =
-      MethodChannel('com.example.anti_counterfeir_app/gallery');
+      MethodChannel('com.example.anti_counterfeit_app/gallery');
 
   /// Saves the given [imageBytes] to the device's gallery.
   /// 

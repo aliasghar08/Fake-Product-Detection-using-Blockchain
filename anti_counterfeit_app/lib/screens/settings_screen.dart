@@ -43,32 +43,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
               ),
-              RadioListTile<ThemeMode>(
-                title: const Text('System Default'),
-                value: ThemeMode.system,
+              RadioGroup<ThemeMode>(
                 groupValue: settings.themeMode,
                 onChanged: (ThemeMode? value) {
                   if (value != null) settings.setThemeMode(value);
                 },
-                secondary: const Icon(Icons.brightness_auto),
-              ),
-              RadioListTile<ThemeMode>(
-                title: const Text('Light Mode'),
-                value: ThemeMode.light,
-                groupValue: settings.themeMode,
-                onChanged: (ThemeMode? value) {
-                  if (value != null) settings.setThemeMode(value);
-                },
-                secondary: const Icon(Icons.light_mode),
-              ),
-              RadioListTile<ThemeMode>(
-                title: const Text('Dark Mode'),
-                value: ThemeMode.dark,
-                groupValue: settings.themeMode,
-                onChanged: (ThemeMode? value) {
-                  if (value != null) settings.setThemeMode(value);
-                },
-                secondary: const Icon(Icons.dark_mode),
+                child: const Column(
+                  children: [
+                    RadioListTile<ThemeMode>(
+                      title: Text('System Default'),
+                      value: ThemeMode.system,
+                      secondary: Icon(Icons.brightness_auto),
+                    ),
+                    RadioListTile<ThemeMode>(
+                      title: Text('Light Mode'),
+                      value: ThemeMode.light,
+                      secondary: Icon(Icons.light_mode),
+                    ),
+                    RadioListTile<ThemeMode>(
+                      title: Text('Dark Mode'),
+                      value: ThemeMode.dark,
+                      secondary: Icon(Icons.dark_mode),
+                    ),
+                  ],
+                ),
               ),
               const Divider(),
               const Padding(

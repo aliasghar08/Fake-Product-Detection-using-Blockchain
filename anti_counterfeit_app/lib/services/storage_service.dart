@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
-  static const String _storageKey = 'saved_private_key';
+  // Separate keys so Manufacturer and Retailer don't overwrite each other
+  static const String _retailerKey = 'saved_retailer_key';
+  static const String _manufacturerKey = 'saved_manufacturer_key';
 
   // This is your encryption keyword. Keep it secret!
   static const String _cipherSecret = 'fyp_sepolia_secret_2026';
@@ -36,23 +38,43 @@ class StorageService {
     return utf8.decode(decryptedBytes);
   }
 
-  /// 3. SAVE TO LOCAL DEVICE
+  // ==========================================
+  // RETAILER KEY STORAGE
+  // ==========================================
   static Future<void> saveKey(String privateKey) async {
     final prefs = await SharedPreferences.getInstance();
-
+    
     // Encrypt the key before saving it
     final scrambledKey = _encrypt(privateKey);
-    await prefs.setString(_storageKey, scrambledKey);
+    await prefs.setString(_retailerKey, scrambledKey);
   }
 
-  /// 4. LOAD FROM LOCAL DEVICE
   static Future<String?> loadKey() async {
     final prefs = await SharedPreferences.getInstance();
-    final scrambledKey = prefs.getString(_storageKey);
+    final scrambledKey = prefs.getString(_retailerKey);
 
     if (scrambledKey == null) return null;
 
     // Decrypt the key before returning it to the text field
+    return _decrypt(scrambledKey);
+  }
+
+  // ==========================================
+  // MANUFACTURER KEY STORAGE
+  // ==========================================
+  static Future<void> saveManufacturerKey(String privateKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    final scrambledKey = _encrypt(privateKey);
+    await prefs.setString(_manufacturerKey, scrambledKey);
+  }
+
+  static Future<String?> loadManufacturerKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    final scrambledKey = prefs.getString(_manufacturerKey);
+
+    if (scrambledKey == null) return null;
+
     return _decrypt(scrambledKey);
   }
 }

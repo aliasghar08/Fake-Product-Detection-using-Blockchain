@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProductTimelineSheet extends StatelessWidget {
   final String serialNumber;
@@ -18,6 +19,20 @@ class ProductTimelineSheet extends StatelessWidget {
   String _formatDate(DateTime? dateTime) {
     if (dateTime == null) return "Unknown Date";
     return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
+  }
+
+  /// Opens the manufacturer address profile on Sepolia Etherscan
+  Future<void> _openEtherscanAddress(BuildContext context, String address) async {
+    if (address.isEmpty || address.startsWith('0x000')) return;
+
+    final Uri url = Uri.parse('https://sepolia.etherscan.io/address/$address');
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch Etherscan URL')),
+        );
+      }
+    }
   }
 
   @override
@@ -57,8 +72,8 @@ class ProductTimelineSheet extends StatelessWidget {
               Icon(
                 isAuthentic
                     ? (isSold
-                          ? Icons.warning_amber_rounded
-                          : Icons.verified_user)
+                        ? Icons.warning_amber_rounded
+                        : Icons.verified_user)
                     : Icons.cancel_outlined,
                 color: isAuthentic
                     ? (isSold ? Colors.orange : Colors.green)
@@ -136,12 +151,33 @@ class ProductTimelineSheet extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Stage 1: Minted by Manufacturer
+            // Stage 1: Minted by Manufacturer (With Etherscan Clickable Address)
             _buildTimelineTile(
               icon: Icons.factory_rounded,
               iconColor: Colors.blueAccent,
               title: "Minted on Blockchain",
-              subtitle: "Manufacturer: ${_shortenAddress(manufacturer)}",
+              subtitleWidget: InkWell(
+                onTap: () => _openEtherscanAddress(context, manufacturer),
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2.0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "Manufacturer: ${_shortenAddress(manufacturer)} ",
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.blue[700],
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                      Icon(Icons.open_in_new, size: 14, color: Colors.blue[700]),
+                    ],
+                  ),
+                ),
+              ),
               timestamp: _formatDate(timestamp),
               isCompleted: true,
               isLast: false,
@@ -152,7 +188,7 @@ class ProductTimelineSheet extends StatelessWidget {
               icon: Icons.link_rounded,
               iconColor: Colors.purpleAccent,
               title: "Ledger State Immutable",
-              subtitle: "Smart Contract: Sepolia Testnet",
+              subtitleText: "Smart Contract: Sepolia Testnet",
               timestamp: "On-Chain Verified",
               isCompleted: true,
               isLast: false,
@@ -165,7 +201,7 @@ class ProductTimelineSheet extends StatelessWidget {
                   : Icons.storefront_rounded,
               iconColor: isSold ? Colors.orange : Colors.green,
               title: isSold ? "Purchased & Locked" : "Available in Retail",
-              subtitle: isSold
+              subtitleText: isSold
                   ? "Marked as sold. Duplicate scans flag a cloned QR code!"
                   : "Item is fresh in inventory and ready for customer purchase.",
               timestamp: isSold ? "Status: Sold" : "Status: In Stock",
@@ -198,7 +234,8 @@ class ProductTimelineSheet extends StatelessWidget {
     required IconData icon,
     required Color iconColor,
     required String title,
-    required String subtitle,
+    String? subtitleText,
+    Widget? subtitleWidget,
     required String timestamp,
     required bool isCompleted,
     required bool isLast,
@@ -254,10 +291,13 @@ class ProductTimelineSheet extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                  ),
+                  if (subtitleWidget != null)
+                    subtitleWidget
+                  else if (subtitleText != null)
+                    Text(
+                      subtitleText,
+                      style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                    ),
                 ],
               ),
             ),
