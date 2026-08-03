@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:anti_counterfeit_app/services/blockchain_service.dart';
+import 'package:anti_counterfeit_app/services/network_service.dart';
 
 class ManufacturerScreen extends StatefulWidget {
   final BlockchainService blockchainService;
@@ -23,12 +24,29 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
   Future<void> _registerProduct() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // 1. PRE-FLIGHT NETWORK CHECK
+    bool hasInternet = await NetworkService.hasInternetConnection();
+    if (!hasInternet) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No internet connection. Cannot mint product on-chain.',
+            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return; // Stop execution here if offline
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Send the transaction to the smart contract
+      // 2. Send the transaction to the smart contract
       final txHash = await widget.blockchainService.addProduct(
         id: BigInt.parse(_idController.text.trim()),
         serialNumber: _serialController.text.trim(),
@@ -66,9 +84,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
           style: TextStyle(color: color, fontWeight: FontWeight.bold),
         ),
         content: SingleChildScrollView(
-          child: SelectableText(
-            message,
-          ),
+          child: SelectableText(message),
         ), // Selectable so you can copy the txHash
         actions: [
           TextButton(

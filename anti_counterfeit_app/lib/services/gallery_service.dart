@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class GalleryService {
@@ -16,7 +17,7 @@ class GalleryService {
       });
       return result ?? false;
     } on PlatformException catch (e) {
-      print('Failed to save image to gallery: ${e.message}');
+      debugPrint('Failed to save image to gallery: ${e.message}');
       return false;
     }
   }

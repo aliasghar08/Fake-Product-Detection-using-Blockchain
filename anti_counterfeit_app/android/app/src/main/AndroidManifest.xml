@@ -5,6 +5,9 @@
     <!-- Required for QR code scanning with the camera -->
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <application
         android:label="anti_counterfeir_app"
         android:name="${applicationName}"

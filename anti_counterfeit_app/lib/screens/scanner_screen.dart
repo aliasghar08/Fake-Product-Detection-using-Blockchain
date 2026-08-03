@@ -1,6 +1,12 @@
+import 'package:anti_counterfeit_app/services/location_service.dart';
+import 'package:anti_counterfeit_app/services/network_service.dart';
 import 'package:anti_counterfeit_app/widgets/scanner.dart';
+import 'package:anti_counterfeit_app/widgets/timeline_sheet.dart';
+import 'package:anti_counterfeit_app/widgets/history_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:anti_counterfeit_app/services/blockchain_service.dart';
+import 'package:anti_counterfeit_app/services/history_service.dart';
+import 'package:geolocator/geolocator.dart';
 
 class ScannerScreen extends StatefulWidget {
   final BlockchainService blockchainService;
@@ -18,11 +24,25 @@ class _ScannerScreenState extends State<ScannerScreen> {
   Future<void> _handleScannedCode(String scannedSerialNumber) async {
     if (_isProcessing) return;
 
-    setState(() {
-      _isProcessing = true;
-    });
+    // 1. PRE-FLIGHT NETWORK CHECK
+    bool hasInternet = await NetworkService.hasInternetConnection();
+    if (!hasInternet) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No internet connection. Please check your network to verify products.',
+            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return; // Stop execution if offline
+    }
 
-    // Show loading indicator
+    setState(() => _isProcessing = true);
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -30,47 +50,54 @@ class _ScannerScreenState extends State<ScannerScreen> {
           const Center(child: CircularProgressIndicator(color: Colors.white)),
     );
 
-    // Send the string to the blockchain
+    // 2. Fetch GPS Location asynchronously while verifying on the blockchain
+    final locationFuture = LocationService.getCurrentLocation();
+
+    // 3. Send the string to the blockchain
     final result = await widget.blockchainService.verifyProduct(
       scannedSerialNumber,
     );
 
-    // Remove loading indicator
-    if (mounted) Navigator.pop(context);
+    // Wait for GPS to finish grabbing coordinates
+    final Position? position = await locationFuture;
 
-    // Show results
-    if (mounted) {
-      if (result['isAuthentic'] == true) {
-        if (result['isSold'] == true) {
-          await _showResultDialog(
-            "WARNING: ALREADY SOLD ⚠️",
-            "This item exists, but was already marked as purchased. Potential clone!",
-            Colors.orange,
-            Icons.warning_amber_rounded,
-          );
-        } else {
-          await _showResultDialog(
-            "AUTHENTIC PRODUCT ✅",
-            "Product: ${result['name']}\nManufacturer: ${result['manufacturer']}",
-            Colors.green,
-            Icons.verified_rounded,
-          );
-        }
-      } else {
-        await _showResultDialog(
-          "FAKE DETECTED ❌",
-          result['error'] ?? "Product not found on ledger.",
-          Colors.red,
-          Icons.cancel_outlined,
-        );
-      }
+    if (mounted) Navigator.pop(context); // Remove loading indicator
+
+    // 4. Determine Status
+    String status = 'Fake';
+    if (result['isAuthentic'] == true) {
+      status = result['isSold'] == true ? 'Sold' : 'Authentic';
     }
 
-    setState(() {
-      _isProcessing = false;
-    });
+    // 5. Save to history WITH location data
+    await HistoryService.saveScan(
+      ScanRecord(
+        serialNumber: scannedSerialNumber,
+        name: result['name'] ?? 'Unknown',
+        status: status,
+        timestamp: DateTime.now(),
+        latitude: position?.latitude,
+        longitude: position?.longitude,
+      ),
+    );
+
+    // Show Timeline Bottom Sheet
+    if (mounted) {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => ProductTimelineSheet(
+          serialNumber: scannedSerialNumber,
+          data: result,
+        ),
+      );
+    }
+
+    setState(() => _isProcessing = false);
   }
 
+  // KEPT AS REQUESTED - The original dialog function remains here safely
   Future<void> _showResultDialog(
     String title,
     String message,
@@ -120,11 +147,41 @@ class _ScannerScreenState extends State<ScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // PLUGGING IN YOUR SEPARATE WIDGET HERE
-      body: CustomScannerWidget(
-        onCodeDetected: (String code) {
-          _handleScannedCode(code);
-        },
+      body: Stack(
+        children: [
+          // 1. BASE LAYER: The Camera Scanner
+          CustomScannerWidget(
+            onCodeDetected: (String code) {
+              _handleScannedCode(code);
+            },
+          ),
+
+          // 2. OVERLAY LAYER: Practical History Button
+          Positioned(
+            top:
+                MediaQuery.of(context).padding.top +
+                16, // Respects the phone's status bar
+            right: 16,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black54, // Semi-transparent background
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.history, color: Colors.white),
+                tooltip: 'Scan History',
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => const ScanHistorySheet(),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
