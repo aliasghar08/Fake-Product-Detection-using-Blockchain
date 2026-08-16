@@ -7,7 +7,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>Anti Counterfeit App</string>
+		<string>BlockGuard</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 		<key>CFBundleInfoDictionaryVersion</key>
 		<string>6.0</string>
 		<key>CFBundleName</key>
-		<string>anti_counterfeit_app</string>
+		<string>BlockGuard</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
@@ -53,8 +53,6 @@
 		<true/>
 		<key>UILaunchStoryboardName</key>
 		<string>LaunchScreen</string>
-		<key>UIMainStoryboardFile</key>
-		<string>Main</string>
 		<key>UISupportedInterfaceOrientations</key>
 		<array>
 			<string>UIInterfaceOrientationPortrait</string>
@@ -69,6 +67,21 @@
 			<string>UIInterfaceOrientationLandscapeRight</string>
 		</array>
 		<key>UIStatusBarHidden</key>
+		<false/>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>This app needs photo library access to save generated QR codes.</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>This app needs photo library access to save generated QR codes.</string>
+		<key>NSFaceIDUsageDescription</key>
+		<string>This app needs Face ID access to securely authenticate the retailer checkout.</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>This app needs access to location to record where the scan occurred.</string>
+		<key>NSLocationAlwaysUsageDescription</key>
+		<string>This app needs access to location to record where the scan occurred.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>This app needs access to location to record where the scan occurred.</string>
+		<!-- Required for App Store / Codemagic builds — declares no non-exempt encryption -->
+		<key>ITSAppUsesNonExemptEncryption</key>
 		<false/>
 	</dict>
 </plist>

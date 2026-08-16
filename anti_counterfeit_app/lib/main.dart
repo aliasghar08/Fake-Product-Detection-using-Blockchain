@@ -45,7 +45,7 @@ class _AntiCounterfeitAppState extends State<AntiCounterfeitApp> {
         animation: _settingsProvider,
         builder: (context, child) {
           return MaterialApp(
-            title: 'Anti-Counterfeit App',
+            title: 'BlockGuard',
             debugShowCheckedModeBanner: false,
             theme: ThemeData(
               brightness: Brightness.light,
@@ -103,9 +103,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> screens = [
-      ScannerScreen(blockchainService: widget.blockchainService),
+      ScannerScreen(blockchainService: widget.blockchainService, isActive: _currentIndex == 0),
       ManufacturerScreen(blockchainService: widget.blockchainService),
-      RetailerScreen(blockchainService: widget.blockchainService),
+      RetailerScreen(blockchainService: widget.blockchainService, isActive: _currentIndex == 2),
     ];
 
     final List<String> titles = [

@@ -6,8 +6,13 @@ import 'package:anti_counterfeit_app/services/camera_service.dart';
 class CustomScannerWidget extends StatefulWidget {
   /// Callback fired when a QR / barcode is detected.
   final Function(String) onCodeDetected;
+  final bool isActive;
 
-  const CustomScannerWidget({super.key, required this.onCodeDetected});
+  const CustomScannerWidget({
+    super.key, 
+    required this.onCodeDetected,
+    this.isActive = true,
+  });
 
   @override
   State<CustomScannerWidget> createState() => _CustomScannerWidgetState();
@@ -15,7 +20,7 @@ class CustomScannerWidget extends StatefulWidget {
 
 class _CustomScannerWidgetState extends State<CustomScannerWidget>
     with SingleTickerProviderStateMixin {
-  final CameraService _cameraService = CameraService();
+  CameraService? _cameraService;
 
   late AnimationController _animationController;
   StreamSubscription<String>? _barcodeSub;
@@ -34,19 +39,35 @@ class _CustomScannerWidgetState extends State<CustomScannerWidget>
       duration: const Duration(seconds: 3),
     )..repeat(reverse: true);
 
-    _initCamera();
+    if (widget.isActive) {
+      _initCamera();
+    }
+  }
+
+  @override
+  void didUpdateWidget(CustomScannerWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive != oldWidget.isActive) {
+      if (widget.isActive) {
+        _initCamera();
+      } else {
+        _disposeCamera();
+      }
+    }
   }
 
   Future<void> _initCamera() async {
+    _cameraService = CameraService();
     try {
-      await _cameraService.initialize();
+      await _cameraService!.initialize();
 
       // Listen for barcodes coming from our custom service
-      _barcodeSub = _cameraService.barcodeStream.listen(_onBarcodeDetected);
+      _barcodeSub = _cameraService!.barcodeStream.listen(_onBarcodeDetected);
 
       if (mounted) {
         setState(() {
           _isInitialized = true;
+          _errorMessage = null;
         });
       }
     } catch (e) {
@@ -58,18 +79,32 @@ class _CustomScannerWidgetState extends State<CustomScannerWidget>
     }
   }
 
+  Future<void> _disposeCamera() async {
+    _barcodeSub?.cancel();
+    _barcodeSub = null;
+    await _cameraService?.dispose();
+    _cameraService = null;
+    
+    if (mounted) {
+      setState(() {
+        _isInitialized = false;
+        _isTorchOn = false;
+      });
+    }
+  }
+
   void _onBarcodeDetected(String value) {
     if (_hasScanned) return;
 
     _hasScanned = true;
-    _cameraService.pauseDetection();
+    _cameraService?.pauseDetection();
     widget.onCodeDetected(value);
 
     // Reset after a delay so user can scan again after dismissing the result
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         _hasScanned = false;
-        _cameraService.resumeDetection();
+        _cameraService?.resumeDetection();
       }
     });
   }
@@ -77,20 +112,23 @@ class _CustomScannerWidgetState extends State<CustomScannerWidget>
   @override
   void dispose() {
     _animationController.dispose();
-    _barcodeSub?.cancel();
-    _cameraService.dispose();
+    _disposeCamera();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.isActive) {
+      return Container(color: Colors.black);
+    }
+
     // Error state
     if (_errorMessage != null) {
       return _ErrorView(message: _errorMessage!);
     }
 
     // Loading state
-    if (!_isInitialized || _cameraService.controller == null) {
+    if (!_isInitialized || _cameraService?.controller == null) {
       return Container(
         color: Colors.black,
         child: const Center(
@@ -116,9 +154,9 @@ class _CustomScannerWidgetState extends State<CustomScannerWidget>
           child: FittedBox(
             fit: BoxFit.cover,
             child: SizedBox(
-              width: _cameraService.controller!.value.previewSize?.height ?? 1,
-              height: _cameraService.controller!.value.previewSize?.width ?? 1,
-              child: CameraPreview(_cameraService.controller!),
+              width: _cameraService?.controller?.value.previewSize?.height ?? 1,
+              height: _cameraService?.controller?.value.previewSize?.width ?? 1,
+              child: CameraPreview(_cameraService!.controller!),
             ),
           ),
         ),
@@ -139,10 +177,10 @@ class _CustomScannerWidgetState extends State<CustomScannerWidget>
                 label: _isTorchOn ? 'Flash On' : 'Flash Off',
                 isActive: _isTorchOn,
                 onTap: () async {
-                  await _cameraService.toggleTorch();
+                  await _cameraService?.toggleTorch();
                   if (mounted) {
                     setState(() {
-                      _isTorchOn = _cameraService.isTorchOn;
+                      _isTorchOn = _cameraService?.isTorchOn ?? false;
                     });
                   }
                 },

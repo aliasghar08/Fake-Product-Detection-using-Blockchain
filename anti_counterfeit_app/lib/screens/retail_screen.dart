@@ -8,8 +8,9 @@ import 'package:anti_counterfeit_app/widgets/scanner.dart';
 
 class RetailerScreen extends StatefulWidget {
   final BlockchainService blockchainService;
+  final bool isActive;
 
-  const RetailerScreen({super.key, required this.blockchainService});
+  const RetailerScreen({super.key, required this.blockchainService, this.isActive = true});
 
   @override
   State<RetailerScreen> createState() => _RetailerScreenState();
@@ -261,6 +262,7 @@ class _RetailerScreenState extends State<RetailerScreen> {
           ),
           Expanded(
             child: CustomScannerWidget(
+              isActive: widget.isActive,
               onCodeDetected: (String code) {
                 _handleScannedCode(code);
               },

@@ -99,12 +99,12 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icons/app_icon.png"
+  image_path: "assets/icons/BlockGuard_icon.jpg"
   adaptive_icon_background: "#1a1a2e"
-  adaptive_icon_foreground: "assets/icons/app_icon.png"
+  adaptive_icon_foreground: "assets/icons/BlockGuard_icon.jpg"
 
 flutter_native_splash:
   color: "#1a1a2e"
-  image: "assets/icons/app_icon.png"
+  image: "assets/icons/BlockGuard_icon.jpg"
   android: true
   ios: true

@@ -10,8 +10,9 @@ import 'package:geolocator/geolocator.dart';
 
 class ScannerScreen extends StatefulWidget {
   final BlockchainService blockchainService;
+  final bool isActive;
 
-  const ScannerScreen({super.key, required this.blockchainService});
+  const ScannerScreen({super.key, required this.blockchainService, this.isActive = true});
 
   @override
   State<ScannerScreen> createState() => _ScannerScreenState();
@@ -108,6 +109,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         children: [
           // 1. BASE LAYER: The Camera Scanner
           CustomScannerWidget(
+            isActive: widget.isActive,
             onCodeDetected: (String code) {
               _handleScannedCode(code);
             },

@@ -1,0 +1,81 @@
+workflows:
+  blockguard-ios-unsigned:
+    name: BlockGuard iOS — Unsigned IPA
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+
+    cache:
+      cache_paths:
+        - $FLUTTER_ROOT/.pub-cache
+        - $HOME/Library/Caches/CocoaPods
+
+    scripts:
+      # ── 1. Flutter setup ────────────────────────────────────────────────────
+      - name: Set Flutter channel
+        script: flutter channel stable && flutter upgrade --force
+
+      - name: Get dependencies
+        script: |
+          cd anti_counterfeit_app
+          flutter pub get
+
+      # ── 2. iOS pre-build ────────────────────────────────────────────────────
+      - name: Generate launcher icons and splash screen
+        script: |
+          cd anti_counterfeit_app
+          dart run flutter_launcher_icons
+          dart run flutter_native_splash:create
+
+      # ── 3. Build unsigned IPA ───────────────────────────────────────────────
+      # flutter build ipa --no-codesign produces a valid .xcarchive.
+      # We then manually package it into an unsigned .ipa using the standard
+      # Payload directory structure that Xcode and Codemagic understand.
+      - name: Build iOS (no code sign)
+        script: |
+          cd anti_counterfeit_app
+          flutter build ipa \
+            --release \
+            --no-codesign \
+            --build-name=1.0.0 \
+            --build-number=$(($(date +%s)))
+
+      - name: Package unsigned IPA
+        script: |
+          cd anti_counterfeit_app
+
+          ARCHIVE=$(find build/ios/archive -name "*.xcarchive" | head -1)
+          echo "Archive found: $ARCHIVE"
+
+          APP_PATH="$ARCHIVE/Products/Applications/Runner.app"
+          PAYLOAD_DIR="build/ios/unsigned_ipa/Payload"
+          IPA_OUT="build/ios/unsigned_ipa/BlockGuard-unsigned.ipa"
+
+          mkdir -p "$PAYLOAD_DIR"
+          cp -r "$APP_PATH" "$PAYLOAD_DIR/"
+
+          cd build/ios/unsigned_ipa
+          zip -r "BlockGuard-unsigned.ipa" Payload
+          cd -
+
+          echo "Unsigned IPA created at: $IPA_OUT"
+
+    artifacts:
+      # Unsigned IPA
+      - anti_counterfeit_app/build/ios/unsigned_ipa/*.ipa
+      # Full xcarchive (optional — useful for later signing)
+      - anti_counterfeit_app/build/ios/archive/*.xcarchive
+      # dSYMs for symbolication
+      - anti_counterfeit_app/build/ios/archive/**/*.dSYM
+
+    publishing:
+      email:
+        recipients:
+          - YOUR_EMAIL@example.com   # ← replace with your address
+        notify:
+          success: true
+          failure: true
