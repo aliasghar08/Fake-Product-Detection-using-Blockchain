@@ -41,6 +41,11 @@ class CameraService {
   // ── Initialization ────────────────────────────────────────────────────────
 
   Future<void> initialize() async {
+    final granted = await _methods.invokeMethod<bool>('requestCameraPermission');
+    if (granted != true) {
+      return;
+    }
+
     // Tell native side to prepare and start the AVCaptureSession.
     await _methods.invokeMethod<void>('start');
 

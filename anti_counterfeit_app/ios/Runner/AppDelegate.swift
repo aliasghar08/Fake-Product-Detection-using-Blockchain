@@ -81,6 +81,20 @@ import CoreLocation
       )
       scannerMethodChannel.setMethodCallHandler({ (call, result) in
         switch call.method {
+        case "requestCameraPermission":
+            let status = AVCaptureDevice.authorizationStatus(for: .video)
+            switch status {
+            case .authorized:
+                result(true)
+            case .notDetermined:
+                AVCaptureDevice.requestAccess(for: .video) { granted in
+                    DispatchQueue.main.async { result(granted) }
+                }
+            case .denied, .restricted:
+                result(false)
+            @unknown default:
+                result(false)
+            }
         case "start":
           ScannerManager.shared.startSession()
           result(nil)

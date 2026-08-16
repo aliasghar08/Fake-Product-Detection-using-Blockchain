@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:anti_counterfeit_app/services/camera_service.dart';
 
@@ -129,38 +131,43 @@ class _CustomScannerWidgetState extends State<CustomScannerWidget>
       return _ErrorView(message: _errorMessage!);
     }
 
-    // Loading state
+    // Loading state — show subtle pulse instead of spinner to feel faster
     if (!_isInitialized) {
-      return Container(
-        color: Colors.black,
-        child: const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(color: Colors.blueAccent),
-              SizedBox(height: 16),
-              Text(
-                'Starting camera…',
-                style: TextStyle(color: Colors.white70, fontSize: 16),
-              ),
-            ],
-          ),
-        ),
-      );
+      return Container(color: Colors.black);
     }
 
     return Stack(
       children: [
-        // ── Native camera preview via AVCapturePreviewLayer / CameraX ──
+        // ── Native camera preview ──────────────────────────────────────────
         SizedBox.expand(
           child: defaultTargetPlatform == TargetPlatform.iOS
               ? const UiKitView(
                   viewType: kScannerViewType,
                   creationParamsCodec: StandardMessageCodec(),
                 )
-              : const AndroidView(
+              // Android: MUST use PlatformViewLink (Hybrid Composition) to avoid
+              // Impeller renderer conflicts which cause a blank camera preview.
+              : PlatformViewLink(
                   viewType: kScannerViewType,
-                  creationParamsCodec: StandardMessageCodec(),
+                  surfaceFactory: (context, controller) {
+                    return AndroidViewSurface(
+                      controller: controller as AndroidViewController,
+                      gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
+                      hitTestBehavior: PlatformViewHitTestBehavior.opaque,
+                    );
+                  },
+                  onCreatePlatformView: (params) {
+                    return PlatformViewsService.initExpensiveAndroidView(
+                      id: params.id,
+                      viewType: kScannerViewType,
+                      layoutDirection: TextDirection.ltr,
+                      creationParams: const <String, dynamic>{},
+                      creationParamsCodec: const StandardMessageCodec(),
+                      onFocus: () => params.onFocusChanged(true),
+                    )
+                      ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
+                      ..create();
+                  },
                 ),
         ),
 

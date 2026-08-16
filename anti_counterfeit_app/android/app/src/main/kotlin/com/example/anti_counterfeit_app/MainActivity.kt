@@ -36,7 +36,8 @@ class MainActivity: FlutterFragmentActivity() {
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var scannerEventSink: EventChannel.EventSink? = null
-    private var nativeScannerView: NativeScannerView? = null
+    private var scannerView: Camera2ScannerView? = null
+    private var cameraPermissionResult: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -152,11 +153,11 @@ class MainActivity: FlutterFragmentActivity() {
             object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
                     scannerEventSink = events
-                    nativeScannerView?.setEventSink(events)
+                    scannerView?.setEventSink(events)
                 }
                 override fun onCancel(arguments: Any?) {
                     scannerEventSink = null
-                    nativeScannerView?.setEventSink(null)
+                    scannerView?.setEventSink(null)
                 }
             }
         )
@@ -164,21 +165,30 @@ class MainActivity: FlutterFragmentActivity() {
         // 7. Scanner Control Channel
         MethodChannel(messenger, SCANNER_CONTROL_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
-                "start" -> { nativeScannerView?.resumeDetection(); result.success(null) }
-                "stop" -> { nativeScannerView?.pauseDetection(); result.success(null) }
-                "pause" -> { nativeScannerView?.pauseDetection(); result.success(null) }
-                "resume" -> { nativeScannerView?.resumeDetection(); result.success(null) }
-                "toggleTorch" -> { nativeScannerView?.toggleTorch(); result.success(null) }
-                "isTorchOn" -> { result.success(nativeScannerView?.isTorchOn() ?: false) }
+                "requestCameraPermission" -> {
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                        result.success(true)
+                    } else {
+                        cameraPermissionResult = result
+                        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 1002)
+                    }
+                }
+                "start" -> { scannerView?.resumeDetection(); result.success(null) }
+                "stop" -> { scannerView?.pauseDetection(); result.success(null) }
+                "pause" -> { scannerView?.pauseDetection(); result.success(null) }
+                "resume" -> { scannerView?.resumeDetection(); result.success(null) }
+                "toggleTorch" -> { scannerView?.toggleTorch(); result.success(null) }
+                "isTorchOn" -> { result.success(scannerView?.isTorchOn() ?: false) }
                 else -> result.notImplemented()
             }
         }
 
-        // 8. Register Native Scanner View
+        // 8. Register Camera2 Scanner View
         flutterEngine.platformViewsController.registry.registerViewFactory(
             SCANNER_VIEW_TYPE,
-            NativeScannerViewFactory(this, { scannerView -> 
-                nativeScannerView = scannerView 
+            Camera2ScannerViewFactory(this, { view ->
+                scannerView = view
+                view.setEventSink(scannerEventSink)
             }, scannerEventSink)
         )
     }
@@ -251,6 +261,15 @@ class MainActivity: FlutterFragmentActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1002) {
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            cameraPermissionResult?.success(granted)
+            cameraPermissionResult = null
         }
     }
 }

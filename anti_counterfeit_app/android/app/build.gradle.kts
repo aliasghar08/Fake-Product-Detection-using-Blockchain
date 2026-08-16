@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.anti_counterfeit_app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -44,20 +44,14 @@ flutter {
     source = "../.."
 }
 
-// Added dependencies for Native Services (Biometrics, CameraX, ML Kit, Location)
+// Added dependencies for Native Services (Biometrics, Camera2 + ZXing, Location)
 dependencies {
+    implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("androidx.biometric:biometric:1.1.0")
 
-    // CameraX
-    val camerax_version = "1.3.0-rc01"
-    implementation("androidx.camera:camera-core:${camerax_version}")
-    implementation("androidx.camera:camera-camera2:${camerax_version}")
-    implementation("androidx.camera:camera-lifecycle:${camerax_version}")
-    implementation("androidx.camera:camera-view:${camerax_version}")
-
-    // ML Kit Barcode Scanning
-    implementation("com.google.mlkit:barcode-scanning:17.2.0")
+    // ZXing — pure Java QR/barcode decoder (no CameraX needed)
+    implementation("com.google.zxing:core:3.5.3")
 
     // Google Play Services Location
     implementation("com.google.android.gms:play-services-location:21.0.1")
-}
+}
