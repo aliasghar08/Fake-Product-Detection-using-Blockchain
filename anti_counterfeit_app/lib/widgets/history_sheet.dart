@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:anti_counterfeit_app/services/url_launcher_service.dart';
 import 'package:anti_counterfeit_app/services/history_service.dart';
 
 class ScanHistorySheet extends StatefulWidget {
@@ -57,10 +57,10 @@ class _ScanHistorySheetState extends State<ScanHistorySheet> {
     return Container(
       height:
           MediaQuery.of(context).size.height * 0.75, // Takes up 75% of screen
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(20.0),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
       ),
       child: Column(
         children: [
@@ -131,17 +131,20 @@ class _ScanHistorySheetState extends State<ScanHistorySheet> {
                               "${record.timestamp.month}/${record.timestamp.day} ${record.timestamp.hour.toString().padLeft(2, '0')}:${record.timestamp.minute.toString().padLeft(2, '0')}";
 
                           return Card(
-                            margin: const EdgeInsets.only(bottom: 8.0),
-                            elevation: 1,
+                            margin: const EdgeInsets.only(bottom: 12.0),
+                            elevation: 0,
+                            color: Theme.of(context).brightness == Brightness.dark 
+                                ? const Color(0xFF1E293B) 
+                                : Colors.white,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(color: Colors.grey.withOpacity(0.1)),
                             ),
                             child: ListTile(
                               contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 4),
+                                  horizontal: 16, vertical: 8),
                               leading: CircleAvatar(
-                                backgroundColor:
-                                    iconColor.withValues(alpha: 0.15),
+                                backgroundColor: iconColor.withOpacity(0.15),
                                 child: Icon(iconData, color: iconColor),
                               ),
                               title: Text(
@@ -166,8 +169,7 @@ class _ScanHistorySheetState extends State<ScanHistorySheet> {
                               // The new interactive Map button!
                               trailing: hasLocation
                                   ? IconButton(
-                                      icon: const Icon(Icons.map,
-                                          color: Colors.blueAccent),
+                                      icon: const Icon(Icons.map, color: Color(0xFF4F46E5)),
                                       tooltip: 'View Scan Location',
                                       onPressed: () => _openMap(
                                           record.latitude!, record.longitude!),

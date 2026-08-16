@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:anti_counterfeit_app/services/url_launcher_service.dart';
 
 class ProductTimelineSheet extends StatelessWidget {
   final String serialNumber;
@@ -44,10 +44,10 @@ class ProductTimelineSheet extends StatelessWidget {
     final DateTime? timestamp = data['timestamp'];
 
     return Container(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.all(20.0),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -124,17 +124,17 @@ class ProductTimelineSheet extends StatelessWidget {
             // Product Name Banner
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.deepPurple.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
+                color: const Color(0xFF4F46E5).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
                 "Item: $name",
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
-                  color: Colors.deepPurple,
+                  color: Color(0xFF4F46E5),
                 ),
               ),
             ),
@@ -244,14 +244,15 @@ class ProductTimelineSheet extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          
           // Left Column (Icon + Vertical Line)
           Column(
             children: [
               CircleAvatar(
                 radius: 16,
                 backgroundColor: isCompleted
-                    ? iconColor.withValues(alpha: 0.15)
-                    : Colors.grey[200],
+                    ? iconColor.withOpacity(0.15)
+                    : Colors.grey.withOpacity(0.1),
                 child: Icon(
                   icon,
                   size: 18,
@@ -259,7 +260,7 @@ class ProductTimelineSheet extends StatelessWidget {
                 ),
               ),
               if (!isLast)
-                Expanded(child: Container(width: 2, color: Colors.grey[300])),
+                Expanded(child: Container(width: 2, color: Colors.grey.withOpacity(0.2))),
             ],
           ),
           const SizedBox(width: 16),

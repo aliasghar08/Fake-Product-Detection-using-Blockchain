@@ -1,94 +1,95 @@
 import 'dart:async';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:flutter/services.dart';
 
-/// Camera + QR scanning service backed by [mobile_scanner] v6.
+/// Channel names — must match the Swift constants in AppDelegate.swift.
+const String kScannerViewType = 'com.blockguard.anticounterfeit/scanner_view';
+const String _kEventChannel = 'com.blockguard.anticounterfeit/scanner_events';
+const String _kMethodChannel = 'com.blockguard.anticounterfeit/scanner_control';
+
+/// Custom QR/barcode scanning service backed entirely by iOS native
+/// AVFoundation (AVCaptureSession + AVCaptureMetadataOutput).
 ///
-/// In mobile_scanner v6 barcode detection is delivered exclusively
-/// through the [MobileScanner] widget's [onDetect] callback — the
-/// controller no longer exposes a `.barcodes` stream.
+/// No third-party scanner library is used. Communication happens over:
+///   • [FlutterEventChannel]  → streams raw QR strings from native side
+///   • [FlutterMethodChannel] → start / stop / pause / resume / torch
 ///
-/// The widget (scanner.dart) calls [handleCapture] from [onDetect],
-/// which pipes the result into [barcodeStream] for the rest of the
-/// app to consume, while honouring the pause/resume gate.
+/// The camera preview is rendered by a [UiKitView] in [scanner.dart]
+/// using the view-type [kScannerViewType].
 ///
 /// Public API:
 ///   • [barcodeStream]    – `Stream<String>` of detected raw values
-///   • [controller]       – MobileScannerController for the widget
 ///   • [isInitialized]
 ///   • [initialize()]
-///   • [handleCapture()]  – called by widget's onDetect
 ///   • [pauseDetection()] / [resumeDetection()]
 ///   • [toggleTorch()] / [isTorchOn]
 ///   • [dispose()]
 class CameraService {
-  late final MobileScannerController _scannerController;
+  static const _events = EventChannel(_kEventChannel);
+  static const _methods = MethodChannel(_kMethodChannel);
 
-  // Stream that emits every detected barcode / QR raw value
   final StreamController<String> _barcodeStreamController =
       StreamController<String>.broadcast();
   Stream<String> get barcodeStream => _barcodeStreamController.stream;
 
+  StreamSubscription<dynamic>? _eventSubscription;
   bool _isInitialized = false;
   bool _isPaused = false;
-
-  /// Exposes the controller so [MobileScanner] widget can be built.
-  MobileScannerController? get controller =>
-      _isInitialized ? _scannerController : null;
+  bool _isTorchOn = false;
 
   bool get isInitialized => _isInitialized;
 
   // ── Initialization ────────────────────────────────────────────────────────
 
   Future<void> initialize() async {
-    _scannerController = MobileScannerController(
-      formats: const [BarcodeFormat.qrCode],
-      facing: CameraFacing.back,
-      torchEnabled: false,
+    // Tell native side to prepare and start the AVCaptureSession.
+    await _methods.invokeMethod<void>('start');
+
+    // Subscribe to the native QR detection event stream.
+    _eventSubscription = _events.receiveBroadcastStream().listen(
+      (dynamic raw) {
+        if (_isPaused) return;
+        final value = raw?.toString() ?? '';
+        if (value.isNotEmpty && !_barcodeStreamController.isClosed) {
+          _barcodeStreamController.add(value);
+        }
+      },
+      onError: (dynamic e) {
+        // Non-fatal — session errors are handled on the native side.
+      },
+      cancelOnError: false,
     );
 
-    // mobile_scanner v6: camera starts when MobileScanner widget is built.
-    // Calling start() here ensures the controller is ready before the
-    // widget tree renders.
-    await _scannerController.start();
     _isInitialized = true;
-  }
-
-  // ── Barcode callback (called from widget's onDetect) ──────────────────────
-
-  /// The [MobileScanner] widget must wire its [onDetect] to this method:
-  ///   onDetect: (capture) => _cameraService?.handleCapture(capture),
-  void handleCapture(BarcodeCapture capture) {
-    if (_isPaused || _barcodeStreamController.isClosed) return;
-    for (final barcode in capture.barcodes) {
-      final value = barcode.rawValue;
-      if (value != null && value.isNotEmpty) {
-        _barcodeStreamController.add(value);
-        break; // emit only the first valid code per frame
-      }
-    }
   }
 
   // ── Controls ──────────────────────────────────────────────────────────────
 
-  void pauseDetection() => _isPaused = true;
-  void resumeDetection() => _isPaused = false;
-
-  Future<void> toggleTorch() async {
-    if (!_isInitialized) return;
-    await _scannerController.toggleTorch();
+  void pauseDetection() {
+    _isPaused = true;
+    _methods.invokeMethod<void>('pause');
   }
 
-  /// Torch state — reads the state from the controller's value.
-  bool get isTorchOn =>
-      _scannerController.value.torchState == TorchState.on;
+  void resumeDetection() {
+    _isPaused = false;
+    _methods.invokeMethod<void>('resume');
+  }
+
+  Future<void> toggleTorch() async {
+    await _methods.invokeMethod<void>('toggleTorch');
+    _isTorchOn = !_isTorchOn;
+  }
+
+  bool get isTorchOn => _isTorchOn;
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
 
   Future<void> dispose() async {
-    await _scannerController.dispose();
+    await _eventSubscription?.cancel();
+    await _methods.invokeMethod<void>('stop');
     if (!_barcodeStreamController.isClosed) {
       await _barcodeStreamController.close();
     }
     _isInitialized = false;
+    _isTorchOn = false;
   }
 }

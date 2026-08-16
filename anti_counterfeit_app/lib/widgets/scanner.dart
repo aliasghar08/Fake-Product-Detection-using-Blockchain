@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:anti_counterfeit_app/services/camera_service.dart';
 
 class CustomScannerWidget extends StatefulWidget {
@@ -128,7 +130,7 @@ class _CustomScannerWidgetState extends State<CustomScannerWidget>
     }
 
     // Loading state
-    if (!_isInitialized || _cameraService?.controller == null) {
+    if (!_isInitialized) {
       return Container(
         color: Colors.black,
         child: const Center(
@@ -149,13 +151,14 @@ class _CustomScannerWidgetState extends State<CustomScannerWidget>
 
     return Stack(
       children: [
-        // ── Camera preview (MobileScanner handles camera + decoding) ──
+        // ── Native camera preview via AVCapturePreviewLayer ──
         SizedBox.expand(
-          child: MobileScanner(
-            controller: _cameraService!.controller!,
-            // Route detections through the service so pause/resume is honoured
-            onDetect: (capture) => _cameraService?.handleCapture(capture),
-          ),
+          child: defaultTargetPlatform == TargetPlatform.iOS
+              ? const UiKitView(
+                  viewType: kScannerViewType,
+                  creationParamsCodec: StandardMessageCodec(),
+                )
+              : Container(color: Colors.black), // Android placeholder
         ),
 
         // ── Scanning overlay with viewfinder cutout ─────────────────
@@ -163,11 +166,11 @@ class _CustomScannerWidgetState extends State<CustomScannerWidget>
 
         // ── Top toolbar: flash toggle ──────────────────────────────
         Positioned(
-          top: MediaQuery.of(context).padding.top + 12,
-          left: 16,
-          right: 16,
+          top: MediaQuery.of(context).padding.top + 16,
+          left: 20,
+          right: 20,
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
               _ToolbarButton(
                 icon: _isTorchOn ? Icons.flash_on : Icons.flash_off,
@@ -188,24 +191,31 @@ class _CustomScannerWidgetState extends State<CustomScannerWidget>
 
         // ── Bottom instruction text ─────────────────────────────────
         Positioned(
-          bottom: 60,
+          bottom: 40,
           left: 40,
           right: 40,
           child: Center(
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: const Text(
-                'Point camera at a QR code to verify product',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  ),
+                  child: const Text(
+                    'Point camera at a QR code',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -276,24 +286,31 @@ class _ToolbarButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive
-              ? Colors.blueAccent.withValues(alpha: 0.8)
-              : Colors.black45,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white, size: 20),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? const Color(0xFF4F46E5).withOpacity(0.8)
+                  : Colors.black.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withOpacity(0.1)),
             ),
-          ],
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -371,15 +388,15 @@ class _ScanOverlay extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.blueAccent.withValues(alpha: 0.0),
-                          Colors.blueAccent,
-                          Colors.blueAccent.withValues(alpha: 0.0),
+                          const Color(0xFF4F46E5).withOpacity(0.0),
+                          const Color(0xFF4F46E5),
+                          const Color(0xFF4F46E5).withOpacity(0.0),
                         ],
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.blueAccent.withValues(alpha: 0.5),
-                          blurRadius: 12,
+                          color: const Color(0xFF4F46E5).withOpacity(0.5),
+                          blurRadius: 16,
                           spreadRadius: 4,
                         ),
                       ],
@@ -406,7 +423,7 @@ class _CornerPainter extends CustomPainter {
     const double radius = 16;
 
     final paint = Paint()
-      ..color = Colors.blueAccent
+      ..color = const Color(0xFF4F46E5)
       ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;

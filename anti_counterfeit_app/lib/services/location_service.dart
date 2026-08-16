@@ -1,36 +1,45 @@
-import 'package:geolocator/geolocator.dart';
+import 'package:flutter/services.dart';
+
+// Replaces the geolocator package.
+// Backed by iOS CLLocationManager via a native MethodChannel.
+const _ch = MethodChannel('com.blockguard.anticounterfeit/location');
+
+/// A lightweight GPS coordinate holder (replaces geolocator's Position).
+class Position {
+  final double latitude;
+  final double longitude;
+  const Position({required this.latitude, required this.longitude});
+}
 
 class LocationService {
   /// Requests permission and returns the current GPS coordinates.
   /// Returns null if permissions are denied or location is turned off.
   static Future<Position?> getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+    // 1. Check if location services are enabled
+    final bool serviceEnabled =
+        await _ch.invokeMethod<bool>('isLocationServiceEnabled') ?? false;
+    if (!serviceEnabled) return null;
 
-    // 1. Check if GPS is enabled on the device
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return null;
+    // 2. Check / request permission
+    String permission =
+        await _ch.invokeMethod<String>('checkPermission') ?? 'denied';
+
+    if (permission == 'notDetermined') {
+      permission =
+          await _ch.invokeMethod<String>('requestPermission') ?? 'denied';
     }
 
-    // 2. Check current permission status
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return null;
-      }
-    }
+    if (permission == 'denied' || permission == 'deniedForever') return null;
 
-    if (permission == LocationPermission.deniedForever) {
-      return null;
-    }
+    // 3. Fetch coordinates — returns {latitude, longitude} or null
+    final Map<dynamic, dynamic>? coords =
+        await _ch.invokeMethod<Map<dynamic, dynamic>>('getCurrentLocation');
 
-    // 3. Fetch the actual location (using low accuracy to save battery & speed up the scan)
-    return await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.low,
-      ),
+    if (coords == null) return null;
+
+    return Position(
+      latitude: (coords['latitude'] as num).toDouble(),
+      longitude: (coords['longitude'] as num).toDouble(),
     );
   }
 }

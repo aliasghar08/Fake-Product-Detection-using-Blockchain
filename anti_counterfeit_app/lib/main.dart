@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:anti_counterfeit_app/services/blockchain_service.dart';
 import 'package:anti_counterfeit_app/screens/scanner_screen.dart';
 import 'package:anti_counterfeit_app/screens/manufacturer_screen.dart';
@@ -44,35 +45,98 @@ class _AntiCounterfeitAppState extends State<AntiCounterfeitApp> {
       child: AnimatedBuilder(
         animation: _settingsProvider,
         builder: (context, child) {
+          final textTheme = GoogleFonts.interTextTheme();
+          
           return MaterialApp(
             title: 'BlockGuard',
             debugShowCheckedModeBanner: false,
+            // ── MODERN LIGHT THEME ──────────────────────────────────────────
             theme: ThemeData(
               brightness: Brightness.light,
-              primarySwatch: Colors.blue,
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: const Color(0xFF4F46E5), // Indigo accent
+                brightness: Brightness.light,
+                surface: const Color(0xFFF8FAFC), // Cool grey background
+              ),
+              textTheme: textTheme,
               useMaterial3: true,
-              scaffoldBackgroundColor: Colors.grey[100],
+              scaffoldBackgroundColor: const Color(0xFFF8FAFC),
               appBarTheme: const AppBarTheme(
-                backgroundColor: Colors.blueAccent,
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                centerTitle: true,
+                scrolledUnderElevation: 0,
+                titleTextStyle: TextStyle(
+                  color: Color(0xFF0F172A),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.5,
+                ),
+                iconTheme: IconThemeData(color: Color(0xFF0F172A)),
+              ),
+              navigationBarTheme: NavigationBarThemeData(
+                backgroundColor: Colors.white,
+                indicatorColor: const Color(0xFFEEF2FF),
+                labelTextStyle: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF4F46E5), fontSize: 12);
+                  }
+                  return const TextStyle(fontWeight: FontWeight.w500, color: Color(0xFF64748B), fontSize: 12);
+                }),
+                iconTheme: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return const IconThemeData(color: Color(0xFF4F46E5));
+                  }
+                  return const IconThemeData(color: Color(0xFF64748B));
+                }),
               ),
             ),
+            // ── MODERN DARK THEME ───────────────────────────────────────────
             darkTheme: ThemeData(
               brightness: Brightness.dark,
-              primarySwatch: Colors.blue,
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: const Color(0xFF6366F1), // Bright indigo
+                brightness: Brightness.dark,
+                surface: const Color(0xFF0F172A), // Deep slate background
+              ),
+              textTheme: textTheme.apply(bodyColor: Colors.white, displayColor: Colors.white),
               useMaterial3: true,
-              scaffoldBackgroundColor: Colors.black,
+              scaffoldBackgroundColor: const Color(0xFF0F172A),
               appBarTheme: const AppBarTheme(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                centerTitle: true,
+                scrolledUnderElevation: 0,
+                titleTextStyle: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.5,
+                ),
+                iconTheme: IconThemeData(color: Colors.white),
+              ),
+              navigationBarTheme: NavigationBarThemeData(
+                backgroundColor: const Color(0xFF1E293B),
+                indicatorColor: const Color(0xFF3730A3).withOpacity(0.5),
+                labelTextStyle: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF818CF8), fontSize: 12);
+                  }
+                  return const TextStyle(fontWeight: FontWeight.w500, color: Color(0xFF94A3B8), fontSize: 12);
+                }),
+                iconTheme: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return const IconThemeData(color: Color(0xFF818CF8));
+                  }
+                  return const IconThemeData(color: Color(0xFF94A3B8));
+                }),
               ),
             ),
             themeMode: _settingsProvider.themeMode,
             home: _isLoading
                 ? const Scaffold(
                     body: Center(
-                      child:
-                          CircularProgressIndicator(color: Colors.blueAccent),
+                      child: CircularProgressIndicator(color: Color(0xFF4F46E5)),
                     ),
                   )
                 : MainNavigationScreen(
@@ -120,27 +184,27 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       drawer: const AppDrawer(),
       body: IndexedStack(index: _currentIndex, children: screens),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
-        backgroundColor: Colors.black,
-        selectedItemColor: Colors.blueAccent,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.qr_code_scanner),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.qr_code_scanner_outlined),
+            selectedIcon: Icon(Icons.qr_code_scanner),
             label: 'Verify',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.factory),
+          NavigationDestination(
+            icon: Icon(Icons.factory_outlined),
+            selectedIcon: Icon(Icons.factory),
             label: 'Register',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_bag),
+          NavigationDestination(
+            icon: Icon(Icons.shopping_bag_outlined),
+            selectedIcon: Icon(Icons.shopping_bag),
             label: 'Retail',
           ),
         ],

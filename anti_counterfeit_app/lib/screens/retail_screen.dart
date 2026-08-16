@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:anti_counterfeit_app/services/url_launcher_service.dart';
 import 'package:anti_counterfeit_app/services/blockchain_service.dart';
 import 'package:anti_counterfeit_app/services/storage_service.dart';
 import 'package:anti_counterfeit_app/services/network_service.dart';
@@ -235,32 +235,67 @@ class _RetailerScreenState extends State<RetailerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text(
-          'Retailer Checkout',
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: Colors.deepPurpleAccent,
-      ),
-      body: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            color: Colors.white,
-            child: TextField(
-              controller: _privateKeyController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Retailer Private Key',
-                hintText: 'Enter key to authorize sale',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.key, color: Colors.deepPurpleAccent),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+          child: Card(
+            elevation: 4,
+            shadowColor: Colors.black12,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    "Retailer Wallet",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _privateKeyController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'Private Key',
+                      hintText: 'Enter Hex Key',
+                      prefixIcon: const Icon(Icons.key, color: Color(0xFF4F46E5)),
+                      filled: true,
+                      fillColor: Theme.of(context).brightness == Brightness.dark 
+                          ? const Color(0xFF1E293B) 
+                          : const Color(0xFFF1F5F9),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    "Required to pay gas fees when marking products as sold.",
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             ),
           ),
-          Expanded(
+        ),
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: const [
+                BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
             child: CustomScannerWidget(
               isActive: widget.isActive,
               onCodeDetected: (String code) {
@@ -268,8 +303,8 @@ class _RetailerScreenState extends State<RetailerScreen> {
               },
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

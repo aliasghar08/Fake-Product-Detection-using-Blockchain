@@ -6,7 +6,6 @@ import 'package:anti_counterfeit_app/widgets/history_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:anti_counterfeit_app/services/blockchain_service.dart';
 import 'package:anti_counterfeit_app/services/history_service.dart';
-import 'package:geolocator/geolocator.dart';
 
 class ScannerScreen extends StatefulWidget {
   final BlockchainService blockchainService;

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:anti_counterfeit_app/services/url_launcher_service.dart';
 import 'package:anti_counterfeit_app/services/blockchain_service.dart';
 import 'package:anti_counterfeit_app/services/network_service.dart';
 import 'package:anti_counterfeit_app/services/gallery_service.dart';
@@ -311,81 +311,129 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.factory_rounded, size: 60, color: Colors.blueAccent),
-                    const SizedBox(height: 16),
-                    const Text(
-                      "Register New Product",
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 24),
-                    TextFormField(
-                      controller: _idController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Product ID (Numeric)', border: OutlineInputBorder()),
-                      validator: (value) => value!.isEmpty ? 'Enter a valid ID' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _serialController,
-                      decoration: const InputDecoration(labelText: 'Serial Number (e.g. QR-101)', border: OutlineInputBorder()),
-                      validator: (value) => value!.isEmpty ? 'Enter a serial number' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(labelText: 'Product Name', border: OutlineInputBorder()),
-                      validator: (value) => value!.isEmpty ? 'Enter a product name' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _privateKeyController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Manufacturer Private Key',
-                        border: OutlineInputBorder(),
-                        helperText: "Used to sign the transaction and pay gas.",
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Card(
+          elevation: 4,
+          shadowColor: Colors.black12,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(28.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.factory_rounded, size: 56, color: Color(0xFF4F46E5)),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Register Product",
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Mint a new asset on the blockchain",
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 32),
+                  _buildModernTextField(
+                    controller: _idController,
+                    label: 'Product ID',
+                    hint: 'Numeric ID',
+                    icon: Icons.numbers,
+                    keyboardType: TextInputType.number,
+                    validator: (value) => value!.isEmpty ? 'Enter a valid ID' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildModernTextField(
+                    controller: _serialController,
+                    label: 'Serial Number',
+                    hint: 'e.g. QR-101',
+                    icon: Icons.qr_code,
+                    validator: (value) => value!.isEmpty ? 'Enter a serial number' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildModernTextField(
+                    controller: _nameController,
+                    label: 'Product Name',
+                    hint: 'e.g. Luxury Watch',
+                    icon: Icons.inventory_2_outlined,
+                    validator: (value) => value!.isEmpty ? 'Enter a product name' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildModernTextField(
+                    controller: _privateKeyController,
+                    label: 'Manufacturer Private Key',
+                    hint: 'Hex Key for gas fees',
+                    icon: Icons.key,
+                    obscureText: true,
+                    validator: (value) => value!.isEmpty ? 'Private key is required' : null,
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4F46E5),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
-                      validator: (value) => value!.isEmpty ? 'Private key is required' : null,
+                      onPressed: _isLoading ? null : _registerProduct,
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : const Text(
+                              "Mint on Blockchain",
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                            ),
                     ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        onPressed: _isLoading ? null : _registerProduct,
-                        child: _isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : const FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text("Mint on Blockchain", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildModernTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    bool obscureText = false,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon, color: const Color(0xFF4F46E5)),
+        filled: true,
+        fillColor: Theme.of(context).brightness == Brightness.dark 
+            ? const Color(0xFF1E293B) 
+            : const Color(0xFFF1F5F9),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       ),
     );
   }

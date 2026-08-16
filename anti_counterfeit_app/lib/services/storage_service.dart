@@ -1,80 +1,63 @@
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
+
+// Replaces the shared_preferences package.
+// Backed by iOS UserDefaults via a native MethodChannel.
+const _ch = MethodChannel('com.blockguard.anticounterfeit/storage');
 
 class StorageService {
-  // Separate keys so Manufacturer and Retailer don't overwrite each other
   static const String _retailerKey = 'saved_retailer_key';
   static const String _manufacturerKey = 'saved_manufacturer_key';
-
-  // This is your encryption keyword. Keep it secret!
   static const String _cipherSecret = 'fyp_sepolia_secret_2026';
 
-  /// 1. ENCRYPTION ALGORITHM (XOR + Base64)
+  // ── XOR + Base64 encryption (unchanged) ──────────────────────────────────
+
   static String _encrypt(String text) {
-    List<int> textBytes = utf8.encode(text);
-    List<int> keyBytes = utf8.encode(_cipherSecret);
-    List<int> encryptedBytes = [];
-
-    // Apply bitwise XOR operator to scramble the data
-    for (int i = 0; i < textBytes.length; i++) {
-      encryptedBytes.add(textBytes[i] ^ keyBytes[i % keyBytes.length]);
-    }
-
-    // Convert the scrambled bytes to a Base64 string for safe storage
-    return base64.encode(encryptedBytes);
+    final textBytes = utf8.encode(text);
+    final keyBytes = utf8.encode(_cipherSecret);
+    final encrypted = List<int>.generate(
+      textBytes.length,
+      (i) => textBytes[i] ^ keyBytes[i % keyBytes.length],
+    );
+    return base64.encode(encrypted);
   }
 
-  /// 2. DECRYPTION ALGORITHM
   static String _decrypt(String base64Text) {
-    List<int> encryptedBytes = base64.decode(base64Text);
-    List<int> keyBytes = utf8.encode(_cipherSecret);
-    List<int> decryptedBytes = [];
-
-    // Reverse the XOR operation to get the original data back
-    for (int i = 0; i < encryptedBytes.length; i++) {
-      decryptedBytes.add(encryptedBytes[i] ^ keyBytes[i % keyBytes.length]);
-    }
-
-    return utf8.decode(decryptedBytes);
+    final encrypted = base64.decode(base64Text);
+    final keyBytes = utf8.encode(_cipherSecret);
+    final decrypted = List<int>.generate(
+      encrypted.length,
+      (i) => encrypted[i] ^ keyBytes[i % keyBytes.length],
+    );
+    return utf8.decode(decrypted);
   }
 
-  // ==========================================
-  // RETAILER KEY STORAGE
-  // ==========================================
+  // ── Retailer key ──────────────────────────────────────────────────────────
+
   static Future<void> saveKey(String privateKey) async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    // Encrypt the key before saving it
-    final scrambledKey = _encrypt(privateKey);
-    await prefs.setString(_retailerKey, scrambledKey);
+    await _ch.invokeMethod<bool>('setString', {
+      'key': _retailerKey,
+      'value': _encrypt(privateKey),
+    });
   }
 
   static Future<String?> loadKey() async {
-    final prefs = await SharedPreferences.getInstance();
-    final scrambledKey = prefs.getString(_retailerKey);
-
-    if (scrambledKey == null) return null;
-
-    // Decrypt the key before returning it to the text field
-    return _decrypt(scrambledKey);
+    final scrambled = await _ch.invokeMethod<String>('getString', _retailerKey);
+    return scrambled != null ? _decrypt(scrambled) : null;
   }
 
-  // ==========================================
-  // MANUFACTURER KEY STORAGE
-  // ==========================================
+  // ── Manufacturer key ──────────────────────────────────────────────────────
+
   static Future<void> saveManufacturerKey(String privateKey) async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    final scrambledKey = _encrypt(privateKey);
-    await prefs.setString(_manufacturerKey, scrambledKey);
+    await _ch.invokeMethod<bool>('setString', {
+      'key': _manufacturerKey,
+      'value': _encrypt(privateKey),
+    });
   }
 
   static Future<String?> loadManufacturerKey() async {
-    final prefs = await SharedPreferences.getInstance();
-    final scrambledKey = prefs.getString(_manufacturerKey);
-
-    if (scrambledKey == null) return null;
-
-    return _decrypt(scrambledKey);
+    final scrambled =
+        await _ch.invokeMethod<String>('getString', _manufacturerKey);
+    return scrambled != null ? _decrypt(scrambled) : null;
   }
 }

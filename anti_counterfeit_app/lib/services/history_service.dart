@@ -1,5 +1,8 @@
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
+
+// Replaces shared_preferences with our custom UserDefaults channel.
+const _ch = MethodChannel('com.blockguard.anticounterfeit/storage');
 
 class ScanRecord {
   final String serialNumber;
@@ -32,12 +35,8 @@ class ScanRecord {
     name: json['name'],
     status: json['status'],
     timestamp: DateTime.parse(json['timestamp']),
-    latitude: json['latitude'] != null
-        ? (json['latitude'] as num).toDouble()
-        : null,
-    longitude: json['longitude'] != null
-        ? (json['longitude'] as num).toDouble()
-        : null,
+    latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
+    longitude: json['longitude'] != null ? (json['longitude'] as num).toDouble() : null,
   );
 }
 
@@ -45,33 +44,22 @@ class HistoryService {
   static const String _key = 'scan_history';
 
   static Future<void> saveScan(ScanRecord record) async {
-    final prefs = await SharedPreferences.getInstance();
     List<ScanRecord> history = await getHistory();
-
-    // Add the new record to the top of the list
     history.insert(0, record);
-
-    // Keep only the last 50 scans to save space
     if (history.length > 50) history = history.sublist(0, 50);
 
-    final String encodedData = jsonEncode(
-      history.map((e) => e.toJson()).toList(),
-    );
-    await prefs.setString(_key, encodedData);
+    final encoded = jsonEncode(history.map((e) => e.toJson()).toList());
+    await _ch.invokeMethod<bool>('setString', {'key': _key, 'value': encoded});
   }
 
   static Future<List<ScanRecord>> getHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? data = prefs.getString(_key);
-
+    final data = await _ch.invokeMethod<String>('getString', _key);
     if (data == null) return [];
-
     final List<dynamic> decoded = jsonDecode(data);
-    return decoded.map((e) => ScanRecord.fromJson(e)).toList();
+    return decoded.map((e) => ScanRecord.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   static Future<void> clearHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_key);
+    await _ch.invokeMethod<bool>('remove', _key);
   }
 }
