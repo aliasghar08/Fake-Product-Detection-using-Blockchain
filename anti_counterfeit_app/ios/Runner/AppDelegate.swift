@@ -296,9 +296,13 @@ final class ScannerManager: NSObject, AVCaptureMetadataOutputObjectsDelegate {
 
   private override init() {
     super.init()
-    setUpSession()
+    // NOTE: We do NOT call setUpSession() here.
+    // Setup is deferred to startSession() which is only called
+    // after camera permission has been granted by the user.
   }
 
+  /// Sets up the AVCaptureSession. Called lazily on first startSession().
+  /// Must be called on a background thread (or it will block the main thread).
   private func setUpSession() {
     guard !sessionSetUp else { return }
     sessionSetUp = true
@@ -315,12 +319,30 @@ final class ScannerManager: NSObject, AVCaptureMetadataOutputObjectsDelegate {
     }
     captureSession.commitConfiguration()
 
-    let layer = AVCaptureVideoPreviewLayer(session: captureSession)
-    layer.videoGravity = .resizeAspectFill
-    self.previewLayer = layer
+    // Create the preview layer on the main thread so it can be safely
+    // added to UIView layer hierarchies.
+    DispatchQueue.main.async {
+      let layer = AVCaptureVideoPreviewLayer(session: self.captureSession)
+      layer.videoGravity = .resizeAspectFill
+      self.previewLayer = layer
+      // Notify any waiting preview view that the layer is now available.
+      NotificationCenter.default.post(name: .scannerPreviewLayerReady, object: nil)
+    }
   }
 
   func startSession() {
+    // Set up session lazily the first time startSession() is called.
+    // This ensures the AVCaptureSession is only configured after permission.
+    if !sessionSetUp {
+      DispatchQueue.global(qos: .userInitiated).async {
+        self.setUpSession()
+        // Start running after setup completes.
+        if !self.captureSession.isRunning {
+          self.captureSession.startRunning()
+        }
+      }
+      return
+    }
     guard !captureSession.isRunning else { return }
     DispatchQueue.global(qos: .userInitiated).async { self.captureSession.startRunning() }
   }
@@ -354,6 +376,12 @@ final class ScannerManager: NSObject, AVCaptureMetadataOutputObjectsDelegate {
   }
 }
 
+// MARK: - Notification names
+
+extension Notification.Name {
+  static let scannerPreviewLayerReady = Notification.Name("scannerPreviewLayerReady")
+}
+
 // MARK: - ScannerStreamHandler
 
 final class ScannerStreamHandler: NSObject, FlutterStreamHandler {
@@ -382,22 +410,77 @@ final class NativeScannerViewFactory: NSObject, FlutterPlatformViewFactory {
   }
 }
 
+// MARK: - ScannerPreviewView
+
+/// A UIView subclass that hosts the AVCaptureVideoPreviewLayer.
+///
+/// The critical fix for the blank camera preview:
+///   UiKitView always provides CGRect.zero as the initial frame.
+///   Flutter lays out the view after the fact and calls layoutSubviews.
+///   We must override layoutSubviews to resize the preview layer to match
+///   the view's real bounds — otherwise the camera stays invisible.
+final class ScannerPreviewView: UIView {
+  private weak var previewLayer: AVCaptureVideoPreviewLayer?
+
+  override init(frame: CGRect) {
+    super.init(frame: frame)
+    backgroundColor = .black
+    clipsToBounds = true
+    attachPreviewLayer()
+    // If the layer isn't ready yet (session still setting up),
+    // listen for the notification and attach it when ready.
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(onPreviewLayerReady),
+      name: .scannerPreviewLayerReady,
+      object: nil
+    )
+  }
+
+  required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
+
+  deinit {
+    NotificationCenter.default.removeObserver(self)
+  }
+
+  private func attachPreviewLayer() {
+    guard let layer = ScannerManager.shared.previewLayer,
+          previewLayer == nil else { return }
+    previewLayer = layer
+    // Remove from any previous superlayer to avoid duplicate parenting.
+    layer.removeFromSuperlayer()
+    layer.frame = bounds
+    self.layer.insertSublayer(layer, at: 0)
+  }
+
+  @objc private func onPreviewLayerReady() {
+    attachPreviewLayer()
+    // Force a layout pass so the layer gets its correct frame.
+    setNeedsLayout()
+    layoutIfNeeded()
+  }
+
+  /// THIS IS THE KEY FIX: every time Flutter resizes the UiKitView,
+  /// layoutSubviews is called. We keep the preview layer in sync here.
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    previewLayer?.frame = bounds
+  }
+}
+
 // MARK: - NativeScannerView
 
 final class NativeScannerView: NSObject, FlutterPlatformView {
-  private let container: UIView
+  private let previewView: ScannerPreviewView
 
   init(frame: CGRect) {
-    container = UIView(frame: frame)
-    container.backgroundColor = .black
-    container.clipsToBounds = true
+    previewView = ScannerPreviewView(frame: frame)
     super.init()
-    if let layer = ScannerManager.shared.previewLayer {
-      layer.frame = container.bounds
-      container.layer.addSublayer(layer)
-    }
+    // startSession is idempotent — safe to call here.
+    // setUpSession() is called lazily inside startSession()
+    // only after camera permission has been granted.
     ScannerManager.shared.startSession()
   }
 
-  func view() -> UIView { container }
+  func view() -> UIView { previewView }
 }
