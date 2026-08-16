@@ -8,13 +8,17 @@ import CoreLocation
 // MARK: - AppDelegate
 
 @main
-@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+@objc class AppDelegate: FlutterAppDelegate {
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    
+    GeneratedPluginRegistrant.register(with: self)
 
-    if let controller = window?.rootViewController as? FlutterViewController {
+    guard let controller = window?.rootViewController as? FlutterViewController else {
+      fatalError("rootViewController is not type FlutterViewController")
+    }
 
       // ── 1. Gallery Channel ───────────────────────────────────────────────
       let galleryChannel = FlutterMethodChannel(
@@ -169,13 +173,8 @@ import CoreLocation
       // ── 8. Location Channel (replaces geolocator) ────────────────────────
       //    Uses CLLocationManager — built-in, no CocoaPods needed.
       LocationManager.shared.setup(binaryMessenger: controller.binaryMessenger)
-    }
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
-
-  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
-    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
   }
 }
 
