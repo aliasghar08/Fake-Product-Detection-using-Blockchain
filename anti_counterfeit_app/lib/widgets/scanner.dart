@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:anti_counterfeit_app/services/camera_service.dart';
 
 class CustomScannerWidget extends StatefulWidget {
@@ -149,15 +149,12 @@ class _CustomScannerWidgetState extends State<CustomScannerWidget>
 
     return Stack(
       children: [
-        // ── Camera preview ──────────────────────────────────────────
+        // ── Camera preview (MobileScanner handles camera + decoding) ──
         SizedBox.expand(
-          child: FittedBox(
-            fit: BoxFit.cover,
-            child: SizedBox(
-              width: _cameraService?.controller?.value.previewSize?.height ?? 1,
-              height: _cameraService?.controller?.value.previewSize?.width ?? 1,
-              child: CameraPreview(_cameraService!.controller!),
-            ),
+          child: MobileScanner(
+            controller: _cameraService!.controller!,
+            // Route detections through the service so pause/resume is honoured
+            onDetect: (capture) => _cameraService?.handleCapture(capture),
           ),
         ),
 
