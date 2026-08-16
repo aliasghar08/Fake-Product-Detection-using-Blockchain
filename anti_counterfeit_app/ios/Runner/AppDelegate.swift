@@ -13,17 +13,17 @@ import CoreLocation
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    
     GeneratedPluginRegistrant.register(with: self)
 
-    guard let controller = window?.rootViewController as? FlutterViewController else {
-      fatalError("rootViewController is not type FlutterViewController")
+    guard let registrar = self.registrar(forPlugin: "AppChannels") else {
+      return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
+    let messenger = registrar.messenger()
 
       // ── 1. Gallery Channel ───────────────────────────────────────────────
       let galleryChannel = FlutterMethodChannel(
         name: "com.example.anti_counterfeit_app/gallery",
-        binaryMessenger: controller.binaryMessenger
+        binaryMessenger: messenger
       )
       galleryChannel.setMethodCallHandler({ (call, result) in
         if call.method == "saveImage" {
@@ -46,7 +46,7 @@ import CoreLocation
       // ── 2. Biometric Channel ─────────────────────────────────────────────
       let biometricChannel = FlutterMethodChannel(
         name: "com.example.anti_counterfeit_app/biometrics",
-        binaryMessenger: controller.binaryMessenger
+        binaryMessenger: messenger
       )
       biometricChannel.setMethodCallHandler({ (call, result) in
         if call.method == "authenticate" {
@@ -70,14 +70,14 @@ import CoreLocation
       // ── 3. Native QR Scanner — EventChannel (barcode stream) ────────────
       let scannerEventChannel = FlutterEventChannel(
         name: "com.blockguard.anticounterfeit/scanner_events",
-        binaryMessenger: controller.binaryMessenger
+        binaryMessenger: messenger
       )
       scannerEventChannel.setStreamHandler(ScannerStreamHandler.shared)
 
       // ── 4. Native QR Scanner — MethodChannel (controls) ─────────────────
       let scannerMethodChannel = FlutterMethodChannel(
         name: "com.blockguard.anticounterfeit/scanner_control",
-        binaryMessenger: controller.binaryMessenger
+        binaryMessenger: messenger
       )
       scannerMethodChannel.setMethodCallHandler({ (call, result) in
         switch call.method {
@@ -104,17 +104,18 @@ import CoreLocation
       })
 
       // ── 5. Register native camera preview as a Flutter platform view ─────
-      let registrar = self.registrar(forPlugin: "BlockGuardNativeScanner")!
-      registrar.register(
-        NativeScannerViewFactory(),
-        withId: "com.blockguard.anticounterfeit/scanner_view"
-      )
+      if let registrar = self.registrar(forPlugin: "BlockGuardNativeScanner") {
+        registrar.register(
+          NativeScannerViewFactory(),
+          withId: "com.blockguard.anticounterfeit/scanner_view"
+        )
+      }
 
       // ── 6. Storage Channel (replaces shared_preferences) ─────────────────
       //    Uses iOS UserDefaults — built-in since iOS 2, no CocoaPods needed.
       let storageChannel = FlutterMethodChannel(
         name: "com.blockguard.anticounterfeit/storage",
-        binaryMessenger: controller.binaryMessenger
+        binaryMessenger: messenger
       )
       storageChannel.setMethodCallHandler({ (call, result) in
         let defaults = UserDefaults.standard
@@ -152,7 +153,7 @@ import CoreLocation
       //    Uses UIApplication.open — built-in, no CocoaPods needed.
       let urlChannel = FlutterMethodChannel(
         name: "com.blockguard.anticounterfeit/url_launcher",
-        binaryMessenger: controller.binaryMessenger
+        binaryMessenger: messenger
       )
       urlChannel.setMethodCallHandler({ (call, result) in
         guard call.method == "launch",
@@ -172,7 +173,7 @@ import CoreLocation
 
       // ── 8. Location Channel (replaces geolocator) ────────────────────────
       //    Uses CLLocationManager — built-in, no CocoaPods needed.
-      LocationManager.shared.setup(binaryMessenger: controller.binaryMessenger)
+      LocationManager.shared.setup(binaryMessenger: messenger)
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
