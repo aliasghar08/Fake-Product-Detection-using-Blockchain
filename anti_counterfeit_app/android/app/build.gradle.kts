@@ -44,7 +44,20 @@ flutter {
     source = "../.."
 }
 
-// Added this dependencies block for the BiometricPrompt API
+// Added dependencies for Native Services (Biometrics, CameraX, ML Kit, Location)
 dependencies {
     implementation("androidx.biometric:biometric:1.1.0")
+
+    // CameraX
+    val camerax_version = "1.3.0-rc01"
+    implementation("androidx.camera:camera-core:${camerax_version}")
+    implementation("androidx.camera:camera-camera2:${camerax_version}")
+    implementation("androidx.camera:camera-lifecycle:${camerax_version}")
+    implementation("androidx.camera:camera-view:${camerax_version}")
+
+    // ML Kit Barcode Scanning
+    implementation("com.google.mlkit:barcode-scanning:17.2.0")
+
+    // Google Play Services Location
+    implementation("com.google.android.gms:play-services-location:21.0.1")
 }

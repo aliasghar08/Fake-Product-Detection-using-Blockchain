@@ -151,14 +151,17 @@ class _CustomScannerWidgetState extends State<CustomScannerWidget>
 
     return Stack(
       children: [
-        // ── Native camera preview via AVCapturePreviewLayer ──
+        // ── Native camera preview via AVCapturePreviewLayer / CameraX ──
         SizedBox.expand(
           child: defaultTargetPlatform == TargetPlatform.iOS
               ? const UiKitView(
                   viewType: kScannerViewType,
                   creationParamsCodec: StandardMessageCodec(),
                 )
-              : Container(color: Colors.black), // Android placeholder
+              : const AndroidView(
+                  viewType: kScannerViewType,
+                  creationParamsCodec: StandardMessageCodec(),
+                ),
         ),
 
         // ── Scanning overlay with viewfinder cutout ─────────────────
